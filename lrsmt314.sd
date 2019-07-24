@@ -1,0 +1,73 @@
+%%
+Screen
+        Name = "lrsmt314" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Part of Body - Ver 7.00     %m" ;
+        domain="lrsbodypart" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________  ______________________________________________ |
+| State Code:       __          ______________________________________________ |
+| Line Of Business: ____        ______________________________________________ |
+| Body Part:        ___                                                        |
+| Effective Date:   __________                                                 |
+| Expiration Date:  __________                                                 |
+*------------------------------------------------------------------------------*
+| Description:      __________________________________________________         |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSBODYPART:COMPANY_ID                  Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSBODYPART:STATE                       Mandatory
+        include "statehlp.inc"
+402     sfsstate:description ;
+501     LRSBODYPART:LINE_OF_BUSINESS            Mandatory
+        include "linehlp.inc"
+502     sfsline:description ;
+601     LRSBODYPART:BODY_PART                   Mandatory;
+701     LRSBODYPART:EFF_DATE                    Mandatory;
+801     LRSBODYPART:EXP_DATE;
+1001    LRSBODYPART:DESCRIPTION;
+
+}
+
+End

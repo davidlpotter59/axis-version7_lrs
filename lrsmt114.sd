@@ -1,0 +1,80 @@
+%%
+Screen
+        Name = "lrsmt114" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s LRSCONTACT - Ver 7.00     %m" ;
+        domain="lrscontact" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSCONTACT,
+           Set LRSCONTACT:COMPANY_ID = G_COMPANY_ID ,
+               LRSCONTACT:CLAIM_NO = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:        __________  ____________________________________________  |
+| Claim Number:      ___________                                               |
+| Home Phone No:     ________________                                          |
+| Business Phone No: ________________                                          |
+| Mobile Phone No:   ________________                                          |
+| Email Address:    __________________________________________________         |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     begin
+        if function = "ADD" then
+            begin
+            lrscontact:company_id = g_company_id
+            lrscontact:claim_no = g_claim_no
+            end
+        end
+        LRSCONTACT:COMPANY_ID/default                   Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSCONTACT:CLAIM_NO/default                     Mandatory;
+501     LRSCONTACT:TELEPHONE[1];
+601     lrscontact:telephone[2] ;
+701     lrscontact:telephone[3] ;
+801     LRSCONTACT:EMAIL;
+
+}
+
+End

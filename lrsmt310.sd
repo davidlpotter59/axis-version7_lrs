@@ -1,0 +1,244 @@
+%%
+Screen
+        Name = "lrsmt310" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Windowtitle = "%a     %s Mail / Merge Selection and Processing - Version 7.00     %m";
+        Screensize = "dynamic"
+        Domain = "LRSLETTER" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10],
+                      G_YESNO[1]  ;
+
+        Local String L_SFS_CODE[3]="SFS" ,
+                     L_OUTFILE[15]="",
+                     L_USERNAME[15];
+
+        local unsigned ascii number l_vendor[5]=0 ;
+
+        Include "sfsrevname.var"
+
+        Access LRSLETTER, Set LRSLETTER:COMPANY_ID  = G_COMPANY_ID ,Generic
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+        "func1" display "lrsmt300" tagged control_file_fn ;
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+        include "lrslettermenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 14,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company ID: __________   __________________________________________________  |
+| Claim No:   ___________  _________ _________________________________________ |
+*------------------------------------------------------------------------------*
+| OK to Process Letter?: _                                                     |
+*------------------------------------------------------------------------------*
+
+
+
+
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            Access SFSDEFAULT, Set SFSDEFAULT:SFS_CODE = L_SFS_CODE
+
+            LRSLETTER:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+            End
+        End
+        LRSLETTER:COMPANY_ID/default     Nochange
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1]/displayonly  ;
+401     LRSLETTER:CLAIM_NO      Nochange
+
+        Activehelp LRSSETUP:CLAIM_NO,
+                   LRSSETUP:NAME,
+                   LRSSETUP:LOSS_DATE;
+402     LRSSETUP:POLICY_NO/displayonly ;
+403     LRSSETUP:NAME[1]/displayonly ;
+601     Begin
+            G_YESNO = "N"
+        End
+        G_YESNO/upper/default/checkbox/values="N,Y"
+        If G_YESNO Not One Of "Y", "N" Then
+            Error 1211 ;
+
+} -- end of file
+
+Update
+If G_YESNO = "Y" Then
+    Do LETTER_PROCESSING
+Else
+    FUNCTION = "BACK"
+
+Procedure Definition
+
+Procedure LETTER_PROCESSING
+Begin
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = LRSLETTER:COMPANY_ID,
+                     LRSSETUP:CLAIM_NO   = LRSLETTER:CLAIM_NO, Generic
+
+Access SFSCAUSE, Set SFSCAUSE:COMPANY_ID         = LRSSETUP:COMPANY_ID,
+                     SFSCAUSE:LINE_OF_BUSINESS   = LRSSETUP:LINE_OF_BUSINESS,
+                     SFSCAUSE:LOB_SUBLINE        = LRSSETUP:LOB_SUBLINE,
+                     SFSCAUSE:CAUSE_OF_LOSS      = LRSSETUP:CAUSE_OF_LOSS,
+                     SFSCAUSE:CAUSE_LOSS_SUBLINE = LRSSETUP:CAUSE_LOSS_SUBLINE, Approximate
+
+Access SFSVENDOR, Set SFSVENDOR:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                      SFSVENDOR:VENDOR_NO  = LRSSETUP:EXAMINER_NO, generic
+
+Access SFSDEFAULT, Set SFSDEFAULT:SFS_CODE = L_SFS_CODE, Exact
+
+L_USERNAME = USERNAME
+
+Access LRSMERGE, Set LRSMERGE:COMPANY_ID = SFSDEFAULT:COMPANY_ID,
+                     LRSMERGE:USER       = L_USERNAME, Exact
+
+L_OUTFILE = Trun(LRSMERGE:MERGE_DATA_FILE_NAME)
+Deletefile( L_OUTFILE )
+
+/* data base headings */
+
+Writefile (L_OUTFILE,'"Claim-Number"~"Policy-No"~"Loss-Date"~"Insured-Name"~"Claimant"~"Type-of-Loss"~"Adjustor"~"Phone"~"Extension"~"Name2"~"Name3"~"Address1"~"Address2"~"Address3"~"City"~"State"~"Zipcode"~')
+Writefile (L_OUTFILE,'"Vendor"~"Vendor-Name2"~"Vendor-Name3"~"Vendor-PO-Box"~"Vendor-Address1"~"Vendor-Address2"~"Vendor-Address3"~"Vendor-City-State"~"Vendor-Zipcode"~"Vendor-Telephone"~"Vendor-FAX"~')
+Writefile (L_OUTFILE,'"Agent-Name1"~"Agent-Name2"~"Agent-Name3"~"Agent-Address1"~"Agent-Address2"~"Agent-Address3"~"Agent-City"~"Agent-State"~"Agent-Zipcode"~"Agent-Telephone"~"Agent-FAX"~"Agent-Number"~') 
+
+Writefile (L_OUTFILE,'"Public-Adj-No"~"Pubadj-Name"~"Pubadj-Name2"~"Pubadj-Name3"~"Pubadj-PO-Box"~"Pubadj-Address1"~"Pubadj-Address2"~"Pubadj-Address3"~"Pubadj-City-State"~"Pubadj-Zipcode"~"Pubadj-Telephone"~"Pubadj-FAX"#')
+
+
+-- dont forget the # at the end of the next line
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(LRSSETUP:CLAIM_NO,"ZZZZZZZZZZZ"),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(LRSSETUP:POLICY_NO,"ZZZZZZZZZ"),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(LRSSETUP:LOSS_DATE,"MM/DD/YYYY"),'"~')
+
+I_REV_NAME = ""
+I_NAME = SFPNAME:NAME[1]
+Include "sfsrevname.pro"
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(I_REV_NAME),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',LRSSETUP:CLAIMANT,'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',SFSCAUSE:DESCRIPTION,'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',SFSVENDOR:NAME[1],'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(SFSVENDOR:TELEPHONE[1]),"(999) 999-9999"),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',SFSVENDOR:EXTENSION[1],'"~')
+
+I_REV_NAME = ""
+I_NAME = SFPNAME:NAME[2]
+Include "sfsrevname.pro"
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(I_REV_NAME),'"~')
+
+I_REV_NAME = ""
+I_NAME = SFPNAME:NAME[3]
+Include "sfsrevname.pro"
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(I_REV_NAME),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFPNAME:ADDRESS[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFPNAME:ADDRESS[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFPNAME:ADDRESS[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFPNAME:CITY),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',SFPNAME:STR_STATE,'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(SFPNAME:STR_ZIPCODE),"99999-9999"),'"~')
+
+-- Add vendor to file
+Access SFSVENDOR, Set SFSVENDOR:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                      SFSVENDOR:VENDOR_NO  = LRSSETUP:ADJUSTOR_VENDOR
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:NAME[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:NAME[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:NAME[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:PO_BOX),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:ADDRESS[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:ADDRESS[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:ADDRESS[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:CITY_STATE),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSVENDOR:STR_ZIPCODE),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(SFSVENDOR:TELEPHONE[1])),"(999) 999-9999"),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(SFSVENDOR:FAX[1])),"(999) 999-9999"),'"~')
+
+
+-- Add Agent to File
+Access SFSAGENT, Set SFSAGENT:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                     SFSAGENT:AGENT_NO   = LRSSETUP:AGENT_NO
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:NAME[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:NAME[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:NAME[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:ADDRESS[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:ADDRESS[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:ADDRESS[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:CITY),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(SFSAGENT:STR_STATE),'"~')
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(SFSAGENT:STR_ZIPCODE))),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(SFSagent:TELEPHONE[1])),"(999) 999-9999"),'"~')
+
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(SFSAGENT:FAX[1])),"(999) 999-9999"),'"~')
+Writefile (L_OUTFILE,"%s%n%s",'"',SFSAGENT:AGENT_NO,'"~')
+
+-- Add vendor to file
+Access lrspubadj, Set lrspubadj:COMPANY_ID     = LRSSETUP:COMPANY_ID,
+                      lrspubadj:pub_adjust_no  = lrssetup:pub_adjust_no, generic
+
+Writefile (L_OUTFILE,"%s%s%s",'"',str(lrspubadj:pub_adjust_no),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:NAME[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:NAME[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:NAME[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:PO_BOX),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:ADDRESS[1]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:ADDRESS[2]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:ADDRESS[3]),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:CITY),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Trun(lrspubadj:STR_ZIPCODE),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(lrspubadj:TELEPHONE[1])),"(999) 999-9999"),'"~')
+Writefile (L_OUTFILE,"%s%s%s",'"',Str(Val(Trun(lrspubadj:FAX[1])),"(999) 999-9999"),'"#')
+
+Closefile (L_OUTFILE)
+
+Proc (":cli unix2dos %s > x ",Trun(L_OUTFILE))/noconsole
+--Proc (":cli mv x %s ",Trun(L_OUTFILE))/noconsole
+Proc (":cli mv %s %s",Trun(L_OUTFILE), Trun(LRSMERGE:DATA_DIRECTORY))/noconsole
+Proc ("%s %s",Trun(LRSMERGE:WORD_PROCESSING_LOCATION),Trun(LRSMERGE:MACRO_TO_RUN))/client
+
+/* cleanup the record just created */
+Access LRSLETTER_ALT, Set LRSLETTER_ALT:COMPANY_ID = LRSLETTER:COMPANY_ID,
+                          LRSLETTER_ALT:CLAIM_NO   = LRSLETTER:CLAIM_NO, Generic
+
+If LRSLETTER_ALT:COMPANY_ID = LRSLETTER:COMPANY_ID And
+   LRSLETTER_ALT:CLAIM_NO   = LRSLETTER:CLAIM_NO Then
+    Begin
+    Delete LRSLETTER_ALT
+    End
+
+End
+
+End

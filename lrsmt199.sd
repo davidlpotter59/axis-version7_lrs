@@ -1,0 +1,172 @@
+%%
+Screen
+        Name = "lrsmt199" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Workers Comp Information - Ver 7.00     %m" ;
+        domain="lrsworkerscomp" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        local unsigned ascii number l_prem_no[4]=0,
+                                    l_build_no[4]=0 ;
+
+        Access LRSWORKERSCOMP,
+           Set LRSWORKERSCOMP:COMPANY_ID = G_COMPANY_ID ,
+               LRSWORKERSCOMP:CLAIM_NO = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:     __________   _______________________________________________ |
+| Claim Number:   ___________                                                  |
+*------------------------------------------------------------------------------*
+| Class Code:     _____        _______________________________________________ |
+| Type Injury:    __           _______________________________________________ |
+| Coverage Code:  ___          _______________________________________________ |
+| Kind Injury:    __           _______________________________________________ |
+| Part Body:      ___          _______________________________________________ |
+| Nature Injury:  ___          _______________________________________________ |
+| Cause Loss:     ___          _______________________________________________ |
+| WC Deductible:  ___          _______________________________________________ |
+| Loss Condition: ___          _______________________________________________ |
+| Occupation:                                                                  |
+| ___________________________________________________________________________  |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     begin
+        if function one of "ADD" then
+            begin
+            lrsworkerscomp:company_id = g_company_id
+            lrsworkerscomp:claim_no   = g_claim_no
+            end
+        end
+        LRSWORKERSCOMP:COMPANY_ID/displayonly ;
+302     sfscompany:name[1] ;
+401     LRSWORKERSCOMP:CLAIM_NO/displayonly ;
+601     begin
+            do access_wcpclass_alias
+
+        end
+        LRSWORKERSCOMP:CLASS_CODE
+        if lrsworkerscomp:class_code <> wcpclass:class_code then
+            error "Invalid Class Code"
+
+        activehelp wcpclass_alias:class_code,
+                   wcpclass_alias:description ;
+602     wcpclass:description ;
+701     LRSWORKERSCOMP:TYPE_INJURY
+        if lrsworkerscomp:type_injury <> lrsinjurytype:type_injury then
+            error "Invalid Code Entered"
+
+        activehelp lrsinjurytype_alias:type_injury,
+                   lrsinjurytype_alias:description ;
+702     lrsinjurytype:description ;
+801     LRSWORKERSCOMP:COVERAGE_CODE
+        if lrsworkerscomp:coverage_code <> lrscovcode:loss_coverage then
+            error "Invalid Code Entered"
+
+        activehelp lrscovcode_alias:loss_coverage,
+                   lrscovcode_alias:description ;
+802     lrscovcode:description ;
+901     LRSWORKERSCOMP:KIND_INJURY
+        if lrsworkerscomp:kind_injury <> lrskindinjury:kind_injury then
+            error "Invalid Code Entered"
+
+        activehelp lrskindinjury_alias:kind_injury,
+                   lrskindinjury_alias:description ;
+902     lrskindinjury:description ;
+1001    LRSWORKERSCOMP:PART_BODY
+        if lrsworkerscomp:part_body <> lrsbodypart:body_part then
+            error "Invalid Code Entered"
+
+        activehelp lrsbodypart_alias:body_part,
+                   lrsbodypart_alias:description ;
+1002    lrsbodypart:description ;
+1101    LRSWORKERSCOMP:NATURE_INJURY
+        if lrsworkerscomp:nature_injury <> lrsnatureinjury:nature_injury then
+            error "Invalid Code Entered"
+
+        activehelp lrsnatureinjury_alias:nature_injury,
+                   lrsnatureinjury_alias:description ;
+1102    lrsnatureinjury:description ;
+1201    LRSWORKERSCOMP:WC_CAUSE_LOSS
+        if lrsworkerscomp:wc_cause_loss <> lrswccauseloss:wc_cause_loss then
+            error "Invalid Code Entered"
+
+        activehelp lrswccauseloss_alias:wc_cause_loss,
+                   lrswccauseloss_alias:description ;
+1202    lrswccauseloss:description ;
+1301    LRSWORKERSCOMP:WC_DEDUCTIBLE
+        if lrsworkerscomp:wc_deductible <> lrswcdeductcode:wc_deductible then
+            error "Invalid Code Entered"
+
+        activehelp lrswcdeductcode_alias:wc_deductible,
+                   lrswcdeductcode_alias:description ;
+1302    lrswcdeductcode:description ;
+1401    LRSWORKERSCOMP:LOSS_CONDITION
+        if lrsworkerscomp:loss_condition <> lrslosscondition:loss_condition then
+            error "Invalid Code Entered"
+
+        activehelp lrslosscondition_alias:loss_condition,
+                   lrslosscondition_alias:description ;
+1402    lrslosscondition:description ;
+1601    LRSWORKERSCOMP:OCCUPATION;
+
+}
+
+procedure definition
+
+procedure access_wcpclass_alias
+begin
+access wcpclass_alias, set wcpclass_alias:policy_no    = lrssetup:policy_no, generic
+
+l_prem_no = wcpclass_alias:prem_no
+l_build_no = wcpclass_alias:build_no
+access wcpclass_alias, set wcpclass_alias:policy_no    = lrssetup:policy_no,
+                           wcpclass_alias:pol_year     = lrssetup:pol_year,
+                           wcpclass_alias:end_sequence = lrssetup:end_sequence,
+                           wcpclass_alias:prem_no      = l_prem_no,
+                           wcpclass_alias:build_no     = l_build_no, generic
+
+end
+
+
+End

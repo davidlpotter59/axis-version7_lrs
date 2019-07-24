@@ -1,0 +1,88 @@
+%%
+Screen
+        Name = "Lrsmt300" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic";
+        Windowtitle = "%s    %a  Claims Mail / Merge User Control File Maintenance - Ver. 7.00     %m";
+        Domain="LRSMERGE";
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global String G_USER[15] ;
+
+        Access LRSMERGE,
+           Set LRSMERGE:COMPANY_ID = G_COMPANY_ID ,
+               LRSMERGE:USER = G_USER ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 20,81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+|                                                                              |
+| Company Id:           __________ _______________________________________     |
+| Username:             _______________                                        |
+*------------------------------------------------------------------------------*
+| Data Directory:       __________________________________________________     |
+|                                                                              |
+| Mapped As:            _____                                                  |
+|                                                                              |
+| Merge Data File Name: __________________________________________________     |
+|                                                                              |
+| Word Processing Location:-                                                   |
+|  ________________________________________________________________________    |
+|                                                                              |
+| Macro To Run:         __________________________________________________     |
+|                                                                              |
+| Copy Command:         _________________________________________              |
+| Destination:          ____________________                                   |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+401     LRSMERGE:COMPANY_ID                     Mandatory
+        include "companyhlp.inc"
+402     SFSCOMPANY:NAME[1];
+501     LRSMERGE:USER                           Mandatory;
+701     LRSMERGE:DATA_DIRECTORY;
+901     LRSMERGE:MAPPED_AS;
+1101    LRSMERGE:MERGE_DATA_FILE_NAME;
+1401    LRSMERGE:WORD_PROCESSING_LOCATION;
+1601    LRSMERGE:MACRO_TO_RUN;
+1801    LRSMERGE:COPY_COMMAND;
+1901    LRSMERGE:DESTINATION
+        If LRSMERGE:DESTINATION <> "" Then
+          Begin
+              Warning "The Directory path that you just Entered "
+                      + Trun(LRSMERGE:DESTINATION) + " MUST Exist. If it does not "
+                      + "the the SCIPS(r) claims form letters will not work!!"
+          End ;
+} -- end of screen panel
+
+End

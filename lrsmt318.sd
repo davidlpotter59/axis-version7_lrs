@@ -1,0 +1,74 @@
+%%
+Screen
+        Name = "lrsmt318" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Loss Conditions Act - Ver 7.00     %m" ;
+        domain="lrslosscondition" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        ______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________  ______________________________________________ |
+| State Code:       __          ______________________________________________ |
+| Line Of Business: ____        ______________________________________________ |
+| Loss Condition:   ___                                                        |
+| Effective Date:   __________                                                 |
+| Expiration Date:  __________                                                 |
+*------------------------------------------------------------------------------*
+| Description:-                                                                |
+|  ___________________________________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSLOSSCONDITION:COMPANY_ID             Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSLOSSCONDITION:STATE                  Mandatory
+        include "statehlp.inc"
+402     sfsstate:description ;
+501     LRSLOSSCONDITION:LINE_OF_BUSINESS       Mandatory
+        include "linehlp.inc"
+502     sfsline:description ;
+601     LRSLOSSCONDITION:LOSS_CONDITION         Mandatory;
+701     LRSLOSSCONDITION:EFF_DATE               Mandatory;
+801     LRSLOSSCONDITION:EXP_DATE;
+1101    LRSLOSSCONDITION:DESCRIPTION;
+
+}
+
+End

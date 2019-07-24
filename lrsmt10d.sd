@@ -1,0 +1,60 @@
+%%
+Screen
+        Name = "lrsmt10d" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic";
+        highlight = underscore ;
+        Windowtitle = "%a     %s Subro/Salvage Amounts - Ver 7.00     %m";
+        Domain = "LRSSETUP" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_PAID_AMOUNT[9]/decimals=2 ,
+                                     G_ULAE_AMOUNT[9]/decimals=2,
+                                     G_ALAE_AMOUNT[9]/decimals=2 ;
+
+        global signed ascii number g_summary_loss[7],
+                                   g_summary_ulae[7],
+                                   g_summary_alae[7] ;
+
+        Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+                             LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Generic;
+
+        Include "stdkeys7.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+screen at 2,1 to 7,80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+|    Loss Amount: _____________           Loss Reserve: _____________          |
+|    ULAE Amount: _____________           ULAE Reserve: _____________          |
+|    ALAE Amount: _____________           ALAE Reserve: _____________          |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+            G_PAID_AMOUNT = 0
+            G_ULAE_AMOUNT = 0
+            G_ALAE_AMOUNT = 0
+        End
+        G_PAID_AMOUNT/mask="$,$$$,$$$.99"/default;
+302     g_summary_loss/mask="$,$$$,$$$"/default ;
+401     G_ULAE_AMOUNT/mask="$,$$$,$$$.99"/default;
+402     g_summary_ulae/mask="$,$$$,$$$"/default ;
+501     G_ALAE_AMOUNT/mask="$,$$$,$$$.99"/default ;
+502     g_summary_alae/mask="$,$$$,$$$"/default ;
+
+} -- end of screen panel
+
+End

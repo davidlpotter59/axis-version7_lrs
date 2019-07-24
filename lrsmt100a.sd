@@ -1,0 +1,413 @@
+%%
+Screen
+        Name = "lrsmt100a" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Name and Address - Ver 7.00     %m";
+        Domain = "SFPNAME" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_POLICY_NO[9] ;
+        Global Unsigned Ascii Number G_YEAR[4] ;
+        Global Unsigned Ascii Number G_END_SEQUENCE[4] ;
+        Global Unsigned Ascii Number G_PREM_NO[4] ;
+        Global Unsigned Ascii Number G_BUILD_NO[4] ;
+        Global Unsigned Ascii Number G_NEW_QUOTE_NO[8] ;
+        Global Unsigned Ascii Number G_LINE_OF_BUSINESS[4] ;
+        global string g_company_id[10] ;
+
+        Global Date G_TRANS_EFF[8] ,
+                    g_loss_date[8] ;
+
+        global unsigned ascii number g_claim_setup[1] ;
+
+        Local Unsigned Ascii Number L_AGENT_NO[4] ;
+
+        Local String L_SCREEN[15],
+                     L_USERNAME[15] ,
+                     l_ok[1]="N",
+                     l_screen_1[8] ;
+
+        Local Date L_EFF_DATE[8] ,
+                   l_exp_date[8] ;
+
+        Include "csexec.var"
+
+        Access SFPNAME,
+           Set SFPNAME:POLICY_NO = G_POLICY_NO ,
+               SFPNAME:POL_YEAR = G_YEAR,
+               SFPNAME:END_SEQUENCE = G_END_SEQUENCE, Approximate ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        "popup" display l_screen_1 ;
+
+        Include "stdfunc7.inc"
+        include "lrsstatsfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+        include "lrsstatsmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+do get_sfpname
+disable(delete_fn)
+
+Access Validation
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = SFPNAME:COMPANY_ID,
+                     SFSEMAIL:USER_ID    = L_USERNAME, Generic
+
+Skip If SFSEMAIL:TPA = "Y" And
+        SFSLINE:TPA  = "N" ;
+
+screen at 2,1 to 21, 81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Policy No:         _________  ____  ____                                     |
+| Name:              __________________________________________________        |
+|                    __________________________________________________        |
+|                    __________________________________________________        |
+| Address:           __________________________________________________        |
+|                    __________________________________________________        |
+|                    __________________________________________________        |
+| City~State~Zip:    ______________________________  ____  __________          |
+| Phone No:          ________________                                          |
+*------------------------------------------------------------------------------*
+| Trans Date:        __________                                                |
+| Effective Date:    __________  Expiration Date: ___________                  |
+*------------------------------------------------------------------------------*
+| Company:           __________  _____________________________________________ |
+| Agent No:          ____  ___________________________________________________ |
+| Line of Business:  ____  _____________________________________________       |
+*------------------------------------------------------------------------------*
+
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     begin
+        if function one of "ADD" then
+            begin
+            sfpname:policy_no = g_policy_no
+            sfpname:pol_Year = g_year
+            sfpname:end_sequence = 0
+            sfpname:company_id = g_company_id
+            sfpname:spec_comm_rate = 0
+            sfpname:bill_plan = "DB"
+            sfpname:payment_plan = 1
+            sfpname:eff_date = l_eff_date
+            sfpname:exp_date = l_exp_date
+            SFPNAME:STATUS = "LOSSES"
+            SFPNAME:STATUS_DATE = SFPNAME:EFF_DATE
+            access sfpname_alias, set sfpname_alias:policy_no = g_policy_no, generic
+
+            sfpname:name[1] = sfpname_alias:name[1]
+            sfpname:name[2] = sfpname_alias:name[2]
+            sfpname:name[3] = sfpname_alias:name[3]
+            sfpname:address[1] = sfpname_alias:address[1]
+            sfpname:address[2] = sfpname_alias:address[2]
+            sfpname:address[3] = sfpname_alias:address[3]
+            sfpname:city = sfpname_alias:city
+            sfpname:str_state = sfpname_alias:str_state
+            sfpname:str_zipcode = sfpname_alias:str_zipcode
+            sfpname:telephone = sfpname_alias:telephone
+            sfpname:agent_no = sfpname_alias:agent_no
+            sfpname:line_of_business = sfpname_alias:line_of_business
+            end
+        end
+        SFPNAME:POLICY_NO/default            Mandatory;
+302     SFPNAME:POL_YEAR/default             Mandatory;
+303     SFPNAME:END_SEQUENCE/default         Mandatory;
+401     SFPNAME:NAME[1]/upper/default ;
+501     SFPNAME:NAME[2]/upper/default ;
+601     SFPNAME:NAME[3]/uppercase/default ;
+701     SFPNAME:ADDRESS[1]/default ;
+801     SFPNAME:ADDRESS[2]/default ;
+901     SFPNAME:ADDRESS[3]/default  ;
+1001    SFPNAME:CITY/default ;
+1002    Begin
+        If FUNCTION = "ADD" Then
+            SFPNAME:STR_STATE = SFSDEFAULT:STR_STATE
+        End
+        SFPNAME:STR_STATE/default ;
+1003    SFPNAME:STR_ZIPCODE/default ;
+1003    Begin
+        If SFPNAME:STR_ZIPCODE[6,9] = "" Then
+            SFPNAME:STR_ZIPCODE[6,9] = "0000"
+        End
+        SFPNAME:STR_ZIPCODE/displayonly ;
+1101    SFPNAME:TELEPHONE/default;
+1301    Begin
+        If FUNCTION = "ADD" Then
+            SFPNAME:TRANS_DATE = TODAYSDATE
+        End
+        SFPNAME:TRANS_DATE/default ;
+1401    SFPNAME:EFF_DATE/default
+        If SFPNAME:EFF_DATE = 0 Then
+            Error 1226
+        if g_loss_date < sfpname:eff_date and
+           g_loss_date <> 0 then
+            error "Loss date is before policy effective date";
+1402    begin
+        if function one of "ADD", "CHANGE" then
+            begin
+--            if l_exp_date = 0 then
+                sfpname:exp_date = dateadd(sfpname:eff_date,0,1)
+            end
+        end
+        SFPNAME:EXP_DATE/default
+        if sfpname:exp_date = 0 then
+            error 1226
+        if g_loss_date > sfpname:exp_date and
+           g_loss_date <> 0 then
+            error "Loss date is after policy expiration date";
+1601    begin
+        if function = "ADD" then
+            sfpname:company_id = sfsdefault:company_id
+        end
+        SFPNAME:COMPANY_ID/default
+        Include "companyhlp.inc"
+1602    trun(SFSCOMPANY:NAME[1]) ;
+1701    SFPNAME:AGENT_NO/default
+        If SFSAGENT:NAME[1] = "" Then
+            Error 1224
+
+        If SFSAGENT:STATUS <> 0 Then
+            Warning 1225
+
+        Activehelp SFSAGENT:AGENT_NO,
+                   SFSAGENT:NAME[1] ;
+1702    trun(SFSAGENT:NAME[1]) ;
+1801    SFPNAME:LINE_OF_BUSINESS/default
+        If SFSLINE:DESCRIPTION = "" Then
+            Error 1227
+        activehelp if sfsline:lob_subline = "00" then
+                       sfsline:line_of_business
+                   else
+                       null,
+                   if sfsline:lob_subline = "00" then
+                       sfsline:description
+                   else
+                       null ;
+1802    trun(SFSLINE:DESCRIPTION) ;
+
+}
+
+Update
+If UPDATEOK = "YES" And
+   Abort = "NO" Then
+    Begin
+    if function one of "ADD", "CHANGE" then
+        begin
+        Access SFPCURRENT, Set SFPCURRENT:POLICY_NO = SFPNAME:POLICY_NO,Generic
+
+        If SFPCURRENT:POLICY_NO <> SFPNAME:POLICY_NO Then
+            Add SFPCURRENT
+                Begin
+                SFPCURRENT:POLICY_NO = SFPNAME:POLICY_NO
+                SFPCURRENT:POL_YEAR = SFPNAME:POL_YEAR
+                SFPCURRENT:END_SEQUENCE = SFPNAME:END_SEQUENCE
+                End
+
+        Access SFPPOINT, Set SFPPOINT:POLICY_NO = SFPNAME:POLICY_NO,
+                             SFPPOINT:POL_YEAR = SFPNAME:POL_YEAR, Generic
+
+        If SFPPOINT:POLICY_NO <> SFPNAME:POLICY_NO And
+           SFPPOINT:POL_YEAR <> SFPNAME:POL_YEAR Then
+            Add SFPPOINT
+                Begin
+                SFPPOINT:POLICY_NO = SFPNAME:POLICY_NO
+                SFPPOINT:POL_YEAR = SFPNAME:POL_YEAR
+                SFPPOINT:END_SEQUENCE = SFPNAME:END_SEQUENCE
+                SFPPOINT:CONVERTED = "Y"
+                End
+
+        Access SFPMASTER, Set SFPMASTER:POLICY_NO = SFPNAME:POLICY_NO,
+                              SFPMASTER:POL_YEAR = SFPNAME:POL_YEAR,
+                              SFPMASTER:END_SEQUENCE = SFPNAME:END_SEQUENCE, Generic
+
+        If SFPMASTER:POLICY_NO <> SFPNAME:POLICY_NO or
+           SFPMASTER:POL_YEAR <> SFPNAME:POL_YEAR or
+           SFPMASTER:END_SEQUENCE <> SFPNAME:END_SEQUENCE Then
+            Begin
+            Add SFPMASTER
+                Begin
+                SFPMASTER:POLICY_NO = SFPNAME:POLICY_NO
+                SFPMASTER:POL_YEAR = SFPNAME:POL_YEAR
+                SFPMASTER:END_SEQUENCE = SFPNAME:END_SEQUENCE
+                SFPMASTER:TRANS_EFF = SFPNAME:EFF_DATE
+                SFPMASTER:TRANS_EXP = SFPNAME:EXP_DATE
+                End
+            end
+
+        if function one of "ADD" then
+            begin
+            if sfsline:lob_code <> "AUTO" then
+                begin
+                g_policy_no    = sfpname:policy_no
+                g_year         = sfpname:pol_Year
+                g_end_sequence = sfpname:end_sequence
+                display modal screen "sfpmt004"
+                with initial function "ADD|BACK"
+
+                display modal screen "sfpmt002"
+                with initial function "ADD|BACK"
+                end
+
+            if sfsline:lob_code one of "AUTO" then
+                begin
+                display modal screen "srsmt008"
+                with initial function "ADD|BACK"
+                end
+            else
+            if sfpname:line_of_business not one of 99 then
+                begin
+                do stat_screen
+                g_company_id  = sfpname:company_id
+                g_policy_no = sfpname:policy_no
+                g_year = sfpname:pol_year
+                g_end_sequence = sfpname:end_sequence
+                g_line_of_business = sfpname:line_of_business
+                display modal screen l_screen_1
+                with initial function "ADD|BACK"
+                end
+            else
+                begin
+                g_company_id  = sfpname:company_id
+                g_policy_no = sfpname:policy_no
+                g_year = sfpname:pol_year
+                g_end_sequence = sfpname:end_sequence
+                g_line_of_business = sfpname:line_of_business
+                display modal screen "srsmt002"
+                with initial function "ADD|BACK"
+                display modal screen "srsmt004"
+                with initial function "ADD|BACK"
+                display modal screen "srsmt005"
+                with initial function "ADD|BACK"
+                display modal screen "srsmt006"
+                with initial function "ADD|BACK"
+                display modal screen "srsmt008"
+                with initial function "ADD|BACK"
+                display modal screen "srsmt011"
+                with initial function "ADD|BACK"
+                end
+            end
+        end
+
+    End
+
+Screen Exit
+g_policy_no = sfpname:policy_no ;
+G_YEAR = SFPNAME:POL_YEAR ;
+G_END_SEQUENCE = SFPNAME:END_SEQUENCE ;
+g_prem_no = 1 ;
+g_build_no = 1 ;
+g_claim_setup = 1 ;
+
+procedure definition
+
+procedure get_sfpname
+begin
+access sfpname_alias, set sfpname_alias:policy_no = g_policy_no, generic
+
+if sfpname_alias:policy_no = g_policy_no then
+    begin
+    if year(sfpname_alias:eff_date) => g_year then
+        begin
+        l_eff_date = sfpname_alias:eff_date
+        l_exp_date = sfpname_alias:exp_date
+        while year(l_eff_date) > g_year
+            begin
+            l_eff_date = dateadd(l_eff_date,0,-1)
+            l_exp_date = dateadd(l_exp_date,0,-1)
+            end
+
+        if g_loss_date <= l_eff_date and
+           g_loss_date >= l_exp_date then
+            l_ok = "Y"
+        else
+            begin
+            l_eff_date = dateadd(l_eff_date,0,-1)
+            l_exp_date = dateadd(l_exp_date,0,-1)
+            if g_loss_date <= l_eff_date and
+               g_loss_date >= l_exp_date then
+                l_ok = "Y"
+            end
+        end
+
+    if year(sfpname_alias:eff_date) < g_year then
+        begin
+        l_eff_date = sfpname_alias:eff_date
+        l_exp_date = sfpname_alias:exp_date
+        while year(l_eff_date) > g_year
+            begin
+            l_eff_date = dateadd(l_eff_date,0,-1)
+            l_exp_date = dateadd(l_exp_date,0,-1)
+            end
+
+        if g_loss_date <= l_eff_date and
+           g_loss_date >= l_exp_date then
+            l_ok = "Y"
+        else
+            begin
+            l_eff_date = dateadd(l_eff_date,0,-1)
+            l_exp_date = dateadd(l_exp_date,0,-1)
+            if g_loss_date <= l_eff_date and
+               g_loss_date >= l_exp_date then
+                l_ok = "Y"
+            end
+        end
+
+    g_year = year(l_eff_date)
+    end
+
+end
+
+procedure stat_screen
+begin
+access sfsline, set sfsline:company_id = sfpname:company_id,
+                    sfsline:line_of_business = sfpname:line_of_business,
+                    sfsline:lob_subline = "00", generic
+
+switch(sfsline:lob_code)
+  case "DWELLING", "HOME" : l_screen_1 = "srsmt001"
+  case "BOP"              : l_screen_1 = "srsmt002"
+  case "SCP"              : l_screen_1 = "srsmt003"
+  case "UMBRELLA"         : l_screen_1 = "srsmt004"
+  case "SMP", "PROPERTY"  : l_screen_1 = "srsmt005"
+  case "WORK"             : l_screen_1 = "srsmt011"
+  case "LIABILITY"        : l_screen_1 = "srsmt006"
+  case "AUTO"             : l_screen_1 = "srsmt008"
+  case "FARMFIRE"         : l_screen_1 = "srsmt009"
+  case "CPORTFOLIO"       : l_screen_1 = "srsmt011"
+  end
+
+end
+
+/* end of file */
+End

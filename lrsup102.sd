@@ -1,0 +1,182 @@
+%%                       
+/*  lrsup102.sd
+
+    February 25, 2009
+
+    SCIPS.com
+
+    Interface update program for SCIPS for the claim setup work flow for flemington.
+*/
+
+Program
+        Name = "lrsup102" ;
+        Type = "File" ;
+        Domain = "dummy" ;
+        Padcharacter = Space ;
+
+        String L_COMPANY_ID[10]="",
+               l_filename1[50],
+               l_filename[50],
+               l_correct_format_name[30],
+               l_str_claim_no[11]="",
+               l_print_str_claim_no[40],
+               l_user_data1[10]="",
+               l_user_data3[30]="                              ",
+               l_user_data4[40]="",
+               l_user_data5[50]="";
+
+
+        unsigned ascii number l_claim_no[11],
+                              l_equals_pos[3];
+
+        Include "sfsrevname7.var"
+
+        string function replace_equals_with_comma(string);
+
+Initialization
+
+
+Update
+  Write ("<014>")
+  access sfsdefault,
+     set sfsdefault:SFS_CODE = "SFS", exact
+
+  l_company_id = sfsdefault:company_id
+  L_claim_no = val(commandline[1,11])
+  l_str_claim_no = commandline[1,11]
+
+
+  access lrssetup,
+     set lrssetup:company_id = l_company_id,
+         lrssetup:claim_no   = l_claim_no, exact
+
+  access scipsimage,
+     set scipsimage:company_id = l_company_id, exact
+
+  access sfscompany,
+     set sfscompany:company_id = l_company_id, exact
+
+  l_filename1 = trun(l_str_claim_no) + ".txt"
+  l_filename = trun(scipsimage:DIRECTORY_PATH) + "/" + trun(l_str_claim_no) + ".clm"
+
+  proc ("cli touch %s/%s%s",trun(scipsimage:DIRECTORY_PATH),trun(str(lrssetup:claim_no)),".txt")
+
+  deletefile (l_filename)
+
+  write("%c%s",10001,l_filename)
+  do write_claim_work_flow_file
+
+Screen Exit
+
+Errors
+
+Procedure Definition
+
+procedure write_claim_work_flow_file
+
+BEGIN
+  Writefile(L_FILENAME,"%s",l_filename1)
+
+  Writefile(L_FILENAME,"%s"," ")
+
+  Writefile(L_FILENAME,"%s","$#IY#$")
+
+
+  l_print_str_claim_no = l_str_claim_no
+
+  Writefile(L_FILENAME,"%s",l_print_str_claim_no)
+
+  Writefile(L_FILENAME,"%s",scipsimage:drawer_name_3[4])         --claims drawer
+
+  Writefile(L_FILENAME,"%s","M" )                                --mutipage will be spilt in separate documents
+
+  Writefile(L_FILENAME,"%s","MISC")                              --doc type all caps
+
+  Writefile(L_FILENAME,"%s","     ")                             --page number
+
+  Writefile(L_FILENAME,"%s",trun(SCIPSIMAGE:FOLDER_TYPES[6]))          --folder type
+
+  Writefile(L_FILENAME,"%s","     ")                             --flow id
+
+  Writefile(L_FILENAME,"%s","     ")                             --step id
+
+  Writefile(L_FILENAME,"%s","          ")                        --user id
+
+  Writefile(L_FILENAME,"%s"," ")                                 --priority
+
+  Writefile(L_FILENAME,"%s","N")                                 --jpeg
+
+  l_correct_format_name = replace_equals_with_comma(lrssetup:name[1,1,30])
+
+  Writefile(L_FILENAME,"%s",l_correct_format_name)                --30 characters
+
+  Writefile(L_FILENAME,"%s","        ")                           --date left blank on purpose
+
+  Writefile(L_FILENAME,"%s","        ")                           --date/last opened left blank on purpose
+
+  Writefile(L_FILENAME,"%s","Y")                                  --"user defined folder"
+
+  Writefile(L_FILENAME,"%s","                                                  ")  --page description left blank on purpose
+
+  Writefile(L_FILENAME,"%s"," ")                                  --conversion flag
+
+  Writefile(L_FILENAME,"%s","      ")                             --document group #
+
+  Writefile(L_FILENAME,"%s","          ")                         --long folder type
+
+  Writefile(L_FILENAME,"%s"," ")                                  --reference number flag
+
+
+  Access SFSLINE,
+     Set SFSLINE:COMPANY_ID       = lrssetup:COMPANY_ID,
+         SFSLINE:LINE_OF_BUSINESS = lrssetup:LINE_OF_BUSINESS,
+         sfsline:lob_subline      = "00", exact
+
+  if sfsline:lob_code not one of "AUTO", "WORK" then
+    {
+      access sfscause,
+         set sfscause:COMPANY_ID         = lrssetup:company_id,
+             sfscause:LINE_OF_BUSINESS   = lrssetup:line_of_business,
+             sfscause:LOB_SUBLINE        = lrssetup:lob_subline,
+             sfscause:CAUSE_OF_LOSS      = lrssetup:cause_of_loss,
+             sfscause:CAUSE_LOSS_subline = lrssetup:cause_loss_subline, exact
+      l_user_data1 = sfscause:line_type + "         "
+    }
+  else
+    {
+      switch (sfsline:lob_code)
+        case "AUTO" : l_user_data1 = "A         "
+        case "WORK" : l_user_data1 = "W         "
+      }
+    }
+  Writefile(L_FILENAME,"%s",l_user_data1)                     --claim type p property l liability A auto w workercompan
+  Writefile(L_FILENAME,"%s",str(lrssetup:loss_date,"MM/DD/YYYY"))
+  Writefile(L_FILENAME,"%s","          ")                     --need to pad with 10 spaces to finished userdata2
+  Writefile(L_FILENAME,"%s",l_user_data3)                     --user data 3 left blank
+  l_user_data4 = trun(sfsline:alpha) + str(lrssetup:policy_no)
+  Writefile(L_FILENAME,"%s",l_user_data4)
+  Writefile(L_FILENAME,"%s",replace_equals_with_comma(lrssetup:claimant))
+  writefile(L_FILENAME,"%s","     ")
+
+  writefile(L_FILENAME,"%s","                                        ")
+END
+
+string function replace_equals_with_comma (string p_name)
+
+BEGIN
+  local string l_formatted_name[50];
+  I_FOUND_DELIMINATOR = Pos(SFSCOMPANY:REVERSE_NAME_DELIMINATOR,P_NAME)
+  if I_found_deliminator <> 0 then
+    {
+      I_FIRST_NAME = Trun(P_NAME[i_found_deliminator+1,Len(P_NAME)])
+      I_LAST_NAME = Trun(P_NAME[1,I_FOUND_DELIMINATOR-1])
+      l_formatted_name = Trun(I_LAST_NAME) + ", " + Trun(I_FIRST_NAME)
+    }
+  else
+    {
+      l_formatted_NAME = p_name
+    }
+  return l_formatted_name
+END
+
+End -- end of program (batch)

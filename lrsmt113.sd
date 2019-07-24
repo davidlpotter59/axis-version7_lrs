@@ -1,0 +1,298 @@
+%%                 
+Screen
+        Name = "lrsmt113";
+        Type = "Detail" ;
+        Highlight=Underscore ;
+        Padcharacter=Space ;
+        Screensize="dynamic";
+--   Windowtitle="%a     %s Policy Information - Ver. 7.22   %m";
+        Domain="lrsmedicare" ;
+        iconline = 0 ;
+
+        Global String g_company_id[10] ;
+
+        global unsigned ascii number g_claim_no[11] ;
+
+        local unsigned ascii number l_sub_code[4] ;
+
+        Access lrsmedicare,
+           Set lrsmedicare:company_id = g_company_id,
+               lrsmedicare:claim_no   = g_claim_no, generic ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        include "stdtoolbar7.inc"
+
+}
+
+Access Validation
+If lrsmedicare:company_id <> g_company_id or
+   lrsmedicare:claim_no <> g_claim_no then
+    Error 1000 ;
+
+screen at 1,1 to 16,100
+
+Properties
+  {
+    Layouttype = screen
+    transparent = false
+  }
+
+{
+   Panel/hidden
+      {
+        Fields
+        Function at 1,1 ;
+      }
+
+panel at 2,1 to 16,100
+{
+%%
+*-------------------------------------------------------------------------------------------------*
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+|                                                                                                 |
+*-------------------------------------------------------------------------------------------------*
+
+%%
+
+}
+
+Panel at 3,5 to 5,35
+        Properties {
+                LayoutType = screen
+        }
+        {
+         Components
+           guidetext at 1,5 to 1,30
+             properties
+               {
+                 text = "Company ID:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 2,5 to 2,30
+             properties
+               {
+                 text = "Claim Number:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 3,5 to 3,30
+             properties
+               {
+                 text = "Transaction Date:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+        }
+
+Panel at 3,37 to 5,90 Tagged rating_pl
+{
+%%
+__________  __________________________________________________
+___________
+__________
+
+%%
+
+components
+
+Fields
+101     begin
+        if function one of "ADD" then
+            begin
+            lrsmedicare:company_id = g_company_id
+            lrsmedicare:claim_no   = g_claim_no
+            lrsmedicare:trans_date = todaysdate
+            do subcode
+            lrsmedicare:sub_code   = l_sub_code + 10
+            end
+        end
+        lrsmedicare:company_id/displayonly
+        include "companyhlp.inc"
+102     sfscompany:name[1] ;
+201     lrsmedicare:claim_no/displayonly ;
+301     lrsmedicare:trans_date/displayonly ;
+
+}
+
+-- draw a line
+panel at 6,2 to 6,98 tagged line_panel_1
+    {
+    Components
+        line at 1.5,1 to 1.5,100
+            Properties
+                {
+                Linestyle = embossed
+                Linewidth = 5
+                Backgroundcolor = "black"
+                }
+    }
+
+Panel at 8,5 to 15,35
+        Properties {
+                LayoutType = screen
+        }
+        {
+         Components
+           guidetext at 1,5 to 1,30
+             properties
+               {
+                 text = "Medicare Reporting Name:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 2,5 to 2,30
+             properties
+               {
+                 text = "Health Insurance Claim Number:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 3,5 to 3,30
+             properties
+               {
+                 text = "Date of Birth:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 4,5 to 4,30
+             properties
+               {
+                 text = "Gender (M/F):"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 5,5 to 5,30
+             properties
+               {
+                 text = "Social Security Number (Optional):"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 6,5 to 6,30
+             properties
+               {
+                 text = "Copy of Medicare Card? (Y/N):"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 7,5 to 7,30
+             properties
+               {
+                 text = "Date Reported to CMS:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+           guidetext at 8,5 to 8,30
+             properties
+               {
+                 text = "Date Reporting Closed:"
+                 fontsize = 12
+                 contentalignment = right
+                 fontname = "arial"
+               }
+        }
+
+Panel at 8,37 to 15,90 Tagged rating_pl
+Properties
+        {
+        Scrollbarpolicy    = asneeded
+        }
+{
+%%
+_________________________
+_________________________________________________
+__________
+__
+___________
+__
+__________
+__________
+
+%%
+
+components
+
+Fields
+101     lrsmedicare:health_ins_claim_no ;
+201     lrsmedicare:receipient_name ;
+301     lrsmedicare:date_of_birth ;
+401     begin
+        if function one of "ADD" then
+            lrsmedicare:gender = "M"
+        end
+        lrsmedicare:gender/uppercase/default
+        if lrsmedicare:gender not one of "M", "F", "" then
+            error "You must enter an M or F" ;
+501     lrsmedicare:social_security_no ;
+601     begin
+        if function one of "ADD" then
+            lrsmedicare:medicare_card = "N"
+        end
+        lrsmedicare:medicare_card/uppercase/default
+        if lrsmedicare:medicare_card not one of "N", "Y" then
+            error "You must enter a N or Y" ;
+701     lrsmedicare:reported_to_cms ;
+801     lrsmedicare:closed_reporting_completed ;
+
+}
+
+}
+
+procedure definition
+
+procedure subcode
+begin
+access lrsmedicare_alias, set lrsmedicare_alias:company_id = lrsmedicare:company_id,
+                              lrsmedicare_alias:claim_no   = lrsmedicare:claim_no, generic
+
+l_sub_code = 0
+while lrsmedicare_alias:company_id = lrsmedicare:company_id and
+      lrsmedicare_alias:claim_no   = lrsmedicare:claim_no
+        begin
+        l_sub_code = lrsmedicare_alias:sub_code
+
+        next lrsmedicare_alias
+        end
+
+end
+
+End

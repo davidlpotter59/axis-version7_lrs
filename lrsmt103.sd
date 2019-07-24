@@ -1,0 +1,69 @@
+%%
+Screen
+        Name = "lrsmt103" ;
+        Type = "Detail" ;
+        Padcharacter = Space;
+        Screensize = "dynamic" ;
+        Highlight = underscore ;
+        Windowtitle = "%a     %s Loss Transaction Code - Ver 7.00     %m";
+        Domain = "LRSCODE" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        local string l_desc[10] ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 10,80
+{
+%%
+                                                        ________________
+*------------------------------------------------------------------------------*
+| Company Id: __________  ____________________________________________________ |
+| Trans Code:       ____  ____________________________________________________ |
+*------------------------------------------------------------------------------*
+| Type:                _  __________                                           |
+*------------------------------------------------------------------------------*
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSCODE:COMPANY_ID                      Mandatory
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     LRSCODE:TRANS_CODE                      Mandatory;
+402     LRSCODE:DESCRIPTION                     Mandatory;
+601     LRSCODE:TYPE;
+602     Begin
+        Switch(LRSCODE:TYPE)
+          Case 1: L_DESC = "Direct"
+          case 3: l_desc = "Assumed"
+          case 5: l_desc = "Ceded"
+          end
+        end
+        l_desc/displayonly ;
+
+} -- end of screen panel
+
+End

@@ -1,0 +1,74 @@
+%%
+Screen
+        Name = "lrsmt316" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s WC Cause of Loss - Ver 7.00     %m" ;
+        domain="lrswccauseloss" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________  ______________________________________________ |
+| State Code:       __          ______________________________________________ |
+| Line Of Business: ____        ______________________________________________ |
+| Wc Cause Loss:    ___                                                        |
+| Effective Date:   __________                                                 |
+| Expiration Date:  __________                                                 |
+*------------------------------------------------------------------------------*
+| Description:-                                                                |
+| ___________________________________________________________________________  |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSWCCAUSELOSS:COMPANY_ID               Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSWCCAUSELOSS:STATE                    Mandatory
+        include "statehlp.inc"
+402     sfsstate:description ;
+501     LRSWCCAUSELOSS:LINE_OF_BUSINESS         Mandatory
+        include "linehlp.inc"
+502     sfsline:description ;
+601     LRSWCCAUSELOSS:WC_CAUSE_LOSS            Mandatory;
+701     LRSWCCAUSELOSS:EFF_DATE                 Mandatory;
+801     LRSWCCAUSELOSS:EXP_DATE;
+1101    LRSWCCAUSELOSS:DESCRIPTION;
+
+}
+
+End

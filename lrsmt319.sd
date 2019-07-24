@@ -1,0 +1,68 @@
+%%
+Screen
+        Name = "lrsmt319" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s CSEXEC - Ver. 7.00     %m" ;
+        Domain = "SFSCSEXEC" ;
+        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_APPLICATION[25] ;
+
+        Access SFSCSEXEC,
+           Set SFSCSEXEC:APPLICATION = G_APPLICATION ;
+
+        Include "stdkeys7.inc"
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        Add/reuse ;
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+access validation
+skip if sfscsexec:application <> "LRSCLAIM"
+
+screen at 2,1 to 8,81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Application:        _________________________                                |
+*------------------------------------------------------------------------------*
+| Application Number: ____________                                             |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     SFSCSEXEC:APPLICATION                   Mandatory;
+501     SFSCSEXEC:APPLICATION_NUMBER;
+
+}
+
+End

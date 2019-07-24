@@ -1,0 +1,97 @@
+Cyberscreen System                                     Function [____________]
+Screen 2. LRSCHECK Update Screen
+ 1. Company Id:       __________   19. Str Zipcode: __________
+ 2. Claim Number:     ___________  20. Check Draft: _
+ 3. Sub Code:                ____
+ 4. Payee Key:        __________________________________________________
+ 5. Check Number:     ____________________
+ 6. Account:          _______________
+ 7. Transaction Code: __________
+ 8. Loss Payment:               _    Post Date: _
+ 9. Alae Payment:               _    check amount: ___________
+10. Ulae Payment:               _    Release:      _
+11. Ten99:                      _    Release Date:  __________
+12. Loss Payee:                 _
+13. Payee Name:       __________________________________________________
+14. Payee Extra:-
+_______________________________________________________________________________
+15. Mailto Name:      __________________________________________________
+16. Address:          __________________________________________________
+17. City:             ______________________________
+18. State:            __
+%%
+Screen
+        Name = "Lrscheck" ;
+        Type = "Detail" ;
+        Padcharacter = space;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+
+        Access LRSCHECK,
+           Set LRSCHECK:COMPANY_ID = G_COMPANY_ID ,
+               LRSCHECK:CLAIM_NO = G_CLAIM_NO ,
+               LRSCHECK:SUB_CODE = G_SUB_CODE ;
+
+
+        Include "STDKEYS.INC"
+
+Functions
+        Add;            /* Add a record */
+        Change;         /* Change an existing record */
+        Delete;         /* Delete an existing record */
+
+        Find ;          /* Select a record using an exact key */
+        Search;         /* Select a record using an approximate key */
+        Next;           /* Display the next record(s) in key sequence */
+        Previous;       /* Display the previous record(s) in key sequence */
+        View;           /* View the contents of freetext fields */
+
+        Page/noreturn;  /* Display a different page - no going back */
+
+"Back"  Return;         /* Back to previous screen */
+"Exit"  Return;
+        Return;
+
+"Bye"   Stop;           /* Terminate this session */
+        Stop;
+
+        Print;          /* Print the screen on the default printer */
+"Cq"    Proc "CQ";      /* Enter Cyberquery */
+"Cli"   Proc ":CLI";    /* Push to the CLI */
+
+Fields
+        FUNCTION ;
+301     LRSCHECK:COMPANY_ID                     Mandatory;
+401     LRSCHECK:CLAIM_NO                       Mandatory;
+501     LRSCHECK:SUB_CODE                       Mandatory;
+601     LRSCHECK:PAYEE_KEY                      Mandatory;
+701     LRSCHECK:CHECK_NO;
+801     LRSCHECK:ACCOUNT;
+901     LRSCHECK:APS_TRANS_CODE;
+1001    LRSCHECK:LOSS_PAYMENT;
+1002    lrscheck:dont_print_check;
+1101    LRSCHECK:ALAE_PAYMENT;
+1102    LRSCHECK:CHECK_AMOUNT;
+1201    LRSCHECK:ULAE_PAYMENT;
+1202    lrscheck:release;
+1301    LRSCHECK:TEN99;
+1302    lrscheck:release_date;
+1401    LRSCHECK:LOSS_PAYEE;
+1501    LRSCHECK:PAYEE_NAME[1];
+1701    LRSCHECK:PAYEE_EXTRA;
+1801    LRSCHECK:MAILTO_NAME[1];
+1901    LRSCHECK:ADDRESS[1];
+2001    LRSCHECK:CITY;
+2101    LRSCHECK:STR_STATE;
+302     LRSCHECK:STR_ZIPCODE;
+402     LRSCHECK:CHECK_DRAFT;
+
+Screen Exit
+        If LRSCHECK:COMPANY_ID > "" Then G_COMPANY_ID = LRSCHECK:COMPANY_ID ;
+        If LRSCHECK:CLAIM_NO > 0 Then G_CLAIM_NO = LRSCHECK:CLAIM_NO ;
+        If LRSCHECK:SUB_CODE > 0 Then G_SUB_CODE = LRSCHECK:SUB_CODE ;
+
+
+End

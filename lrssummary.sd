@@ -1,0 +1,141 @@
+%%
+Screen
+        Name = "Lrssummary" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s LRSSUMMARY - Ver 7.00     %m" ;
+        domain="lrssummary" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_LINE_OF_BUSINESS[4] ;
+        Global String G_LOB_SUBLINE[2] ;
+        Global Unsigned Ascii Number G_CAUSE_OF_LOSS[4] ;
+        Global String G_CAUSE_LOSS_SUBLINE[2] ;
+        Global Unsigned Ascii Number G_TRANS_TYPE[2] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+
+        Access LRSSUMMARY,
+           Set LRSSUMMARY:COMPANY_ID = G_COMPANY_ID ,
+               LRSSUMMARY:CLAIM_NO = G_CLAIM_NO ,
+               LRSSUMMARY:LINE_OF_BUSINESS = G_LINE_OF_BUSINESS ,
+               LRSSUMMARY:LOB_SUBLINE = G_LOB_SUBLINE ,
+               LRSSUMMARY:CAUSE_OF_LOSS = G_CAUSE_OF_LOSS ,
+               LRSSUMMARY:CAUSE_LOSS_SUBLINE = G_CAUSE_LOSS_SUBLINE ,
+               LRSSUMMARY:TRANS_TYPE = G_TRANS_TYPE ,
+               LRSSUMMARY:SUB_CODE = G_SUB_CODE ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:         __________                                               |
+| Claim Number:       ___________                                              |
+| Line Of Business:   ____                                                     |
+| Lob Subline:        __                                                       |
+| Cause Of Loss:      ____                                                     |
+| Cause Loss Subline: __                                                       |
+| Trans Type:         __                                                       |
+| Sub Code:           ____                                                     |
+| Claimant:           __________________________________________________       |
+| Loss Resv:          ____________                                             |
+| Loss Paid:          ______________                                           |
+| Ulae Resv:          ___________                                              |
+| Ulae Paid:          ______________                                           |
+| Alae Resv:          ___________                                              |
+| Alae Paid:          ______________                                           |
+| Transaction Date:   __________                                               |
+| Transaction Code:   ____                                                     |
+| Comments:           ____________________________________________________     |
+| Amount:             _____________                                            |
+| Reins Co:           ______                                                   |
+| Status:             _   Date: __________                                     |
+| Closing Loss Resv:  __________                                               |
+| Closing ULAE Resv:  __________                                               |
+| Closing ALAE Resv:  __________                                               |
+| Synchronized:       _   Date: __________                                     |
+*------------------------------------------------------------------------------*
+
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSSUMMARY:COMPANY_ID                   Mandatory;
+401     LRSSUMMARY:CLAIM_NO                     Mandatory;
+501     LRSSUMMARY:LINE_OF_BUSINESS             Mandatory;
+601     LRSSUMMARY:LOB_SUBLINE                  Mandatory;
+701     LRSSUMMARY:CAUSE_OF_LOSS                Mandatory;
+801     LRSSUMMARY:CAUSE_LOSS_SUBLINE           Mandatory;
+901     LRSSUMMARY:TRANS_TYPE                   Mandatory;
+1001    LRSSUMMARY:SUB_CODE                     Mandatory;
+1101    LRSSUMMARY:CLAIMANT;
+1201    LRSSUMMARY:LOSS_RESV;
+1301    LRSSUMMARY:LOSS_PAID;
+1401    LRSSUMMARY:ULAE_RESV;
+1501    LRSSUMMARY:ULAE_PAID;
+1601    LRSSUMMARY:ALAE_RESV;
+1701    LRSSUMMARY:ALAE_PAID;
+1801    LRSSUMMARY:TRANS_DATE;
+1901    LRSSUMMARY:TRANS_CODE;
+2001    lrssummary:comments ;
+2101    lrssummary:amount ;
+2201    lrssummary:reins_co ;
+2301    lrssummary:status ;
+2302    lrssummary:status_date ;
+2401    lrssummary:closing_loss_resv ;
+2501    lrssummary:closing_ulae_resv ;
+2601    lrssummary:closing_alae_resv ;
+2701    lrssummary:synchronized ;
+2702    lrssummary:synchronized_date ;
+
+}
+
+Screen Exit
+        If LRSSUMMARY:COMPANY_ID > ""
+        Then G_COMPANY_ID = LRSSUMMARY:COMPANY_ID ;
+        If LRSSUMMARY:CLAIM_NO > 0 Then G_CLAIM_NO = LRSSUMMARY:CLAIM_NO ;
+        If LRSSUMMARY:LINE_OF_BUSINESS > 0
+        Then G_LINE_OF_BUSINESS = LRSSUMMARY:LINE_OF_BUSINESS ;
+        If LRSSUMMARY:LOB_SUBLINE > ""
+        Then G_LOB_SUBLINE = LRSSUMMARY:LOB_SUBLINE ;
+        If LRSSUMMARY:CAUSE_OF_LOSS > 0
+        Then G_CAUSE_OF_LOSS = LRSSUMMARY:CAUSE_OF_LOSS ;
+        If LRSSUMMARY:CAUSE_LOSS_SUBLINE > ""
+        Then G_CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE ;
+        If LRSSUMMARY:TRANS_TYPE > 0
+        Then G_TRANS_TYPE = LRSSUMMARY:TRANS_TYPE ;
+        If LRSSUMMARY:SUB_CODE > 0 Then G_SUB_CODE = LRSSUMMARY:SUB_CODE ;
+
+
+End

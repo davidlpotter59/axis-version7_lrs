@@ -1,0 +1,261 @@
+%%
+Screen
+        Name = "lrsmt100e" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Vehicle Information - Ver. 7.00     %m" ;
+        Domain = "CAPVEHICLE" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_LIB[10] ;
+
+        Global Unsigned Ascii Number G_POLICY_NO[9],
+                                     G_YEAR[4],
+                                     G_END_SEQUENCE[4],
+                                     G_QUOTE_NO[8],
+                                     G_VEHICLE_NO[4] ;
+
+        Local Unsigned Ascii Number L_SUB_CODE[4]=0 ,
+                                    L_BASIC_LIMIT_1[8]=0,
+                                    L_VEHICLE_NO[4]=1,
+                                    L_EXTENDED_LIMIT[8]=0,
+                                    L_EXTENDED_ADDL_LIMIT[8]=0,
+                                    L_BASIC_LIMIT_2[8]=0 ;
+
+        Local String L_RECORD_KEY[2]="" ,
+                     L_CODE[7]="" ,
+                     L_ACV_CODE[7]="",
+                     L_USERNAME[15]="" ,
+                     L_BUSES_CODE[7]="",
+                     L_PLATES_CODE[7]="",
+                     L_MOTOR_HOME_CODE[7]="",
+                     L_UM_UIM_CODE[7]="",
+                     L_MEDICAL_EXP_MOTOR_BUS_CODE[7]="",
+                     L_ADD_MED_EXP_CODE[1]="N",
+                     L_FORM_EDITION[18]="",
+                     L_DESCRIPTION[55]="",
+                     L_ADD_ENDORSEMENT[1]="Y" ;
+
+        Access CAPVEHICLE,
+           Set CAPVEHICLE:POLICY_NO = G_POLICY_NO,
+               CAPVEHICLE:POL_YEAR = G_YEAR,
+               CAPVEHICLE:END_SEQUENCE = G_END_SEQUENCE,
+               CAPVEHICLE:VEHICLE_NO = G_VEHICLE_NO, Approximate ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+        "func1" Display "lrsmt100f" tagged driver_fn ;
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+Toolbar Tagged Utilities_t Properties
+                                {
+                                Text     = "Utility"
+                                FontName = "SansSerif"
+                                Fontsize = 10
+                                }
+                        {
+                        ToolBarButton
+                                Properties
+                                    {
+                                    Tooltip   = "Driver Information"
+                                    Iconname  = "down.bmp"
+                                    }
+                                Events
+                                    {
+                                    Action    = driver_fn
+                                    }
+                        Separator
+
+}
+
+Access Validation
+If CAPVEHICLE:POLICY_NO <> G_POLICY_NO Or
+   CAPVEHICLE:POL_YEAR <> G_YEAR Or
+   CAPVEHICLE:END_SEQUENCE <> G_END_SEQUENCE Then
+    Error 1000
+
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = SFPNAME:COMPANY_ID,
+                     SFSEMAIL:USER_ID = L_USERNAME, Generic
+
+Skip If SFSEMAIL:TPA = "Y" And
+        SFSLINE:TPA = "N" ;
+
+screen at 2,1 to 18,81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Policy No:     _________  ____  ____                                         |
+| Vehicle No:    ____                                                          |
+*------------------------------------------------------------------------------*
+| Business Desc: ______________________________ ______________________________ |
+| State:         __   ____________                                             |
+| County:        ___  ____________________                                     |
+| Territory:     ___  __________________________________________________       |
+| Zip Code:      __________                                                    |
+| Auto Year:     ____                                                          |
+| Make:          ____________________                                          |
+| Model:         ______________________________                                |
+| Serial No:     ____________________                                          |
+| Type:          _  __________________________________________________________ |
+| Class Code:    _____  __________________________________________________     |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext;
+301     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            CAPVEHICLE:POLICY_NO = G_POLICY_NO
+            CAPVEHICLE:POL_YEAR = G_YEAR
+            CAPVEHICLE:END_SEQUENCE = G_END_SEQUENCE
+            CAPVEHICLE:COMPANY_ID = SFPNAME:COMPANY_ID
+            CAPVEHICLE:LINE_OF_BUSINESS = SFPNAME:LINE_OF_BUSINESS
+            CAPVEHICLE:NO_FAULT = "N"
+            CAPVEHICLE:DUMP = "N"
+            CAPVEHICLE:ACV = "Y"
+            CAPVEHICLE:ADDITIONAL_INSURED = "N"
+            CAPVEHICLE:CHASSIS = "N"
+            CAPVEHICLE:NON_EMPLOYEE = "N"
+            CAPVEHICLE:TOWING = "N"
+            End
+        End
+        CAPVEHICLE:POLICY_NO/displayonly     Mandatory;
+302     CAPVEHICLE:POL_YEAR/displayonly  Mandatory ;
+303     CAPVEHICLE:END_SEQUENCE/displayonly Mandatory ;
+401     CAPVEHICLE:VEHICLE_NO   Mandatory ;
+601     Begin
+        Access CAPVEHICLE_ALIAS, Set CAPVEHICLE_ALIAS:POLICY_NO = G_POLICY_NO,
+                                     CAPVEHICLE_ALIAS:POL_YEAR = G_YEAR,
+                                     CAPVEHICLE_ALIAS:END_SEQUENCE = G_END_SEQUENCE, Generic
+
+        CAPVEHICLE:BUSINESS_DESC[1] = CAPVEHICLE_ALIAS:BUSINESS_DESC[1]
+        CAPVEHICLE:BUSINESS_DESC[2] = CAPVEHICLE_ALIAS:BUSINESS_DESC[2]
+        End
+        CAPVEHICLE:BUSINESS_DESC[1]/default;
+602     CAPVEHICLE:BUSINESS_DESC[2]/default
+        Hide If CAPVEHICLE:BUSINESS_DESC[1] = "" ;
+701     Begin
+        If FUNCTION = "ADD" Then
+            CAPVEHICLE:STATE = CASDEFAULT:STATE
+        End
+        CAPVEHICLE:STATE/default
+        Include "statehlp.inc"
+702     SFSSTATE:DESCRIPTION ;
+801     CAPVEHICLE:COUNTY/default
+        Include "countyhlp.inc"
+802     SFSSTATE_ALIAS:DESCRIPTION ;
+901     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            If CAPVEHICLE:VEHICLE_NO > 1 Then
+                Begin
+                CAPVEHICLE:TERRITORY = CAPVEHICLE_ALIAS:TERRITORY
+                CAPVEHICLE:TERRITORY_DESCRIPTION = CAPVEHICLE_ALIAS:TERRITORY_DESCRIPTION
+                End
+
+            If CAPVEHICLE:VEHICLE_NO = 1 And
+               SECURITY < 65 Then
+                Activehelp()
+            End
+        End
+        CAPVEHICLE:TERRITORY
+        If CAPVEHICLE:TERRITORY <> SFSTERRITORY:TERRITORY Or
+           CAPVEHICLE:TERRITORY = 0 Then
+            Error 1206
+        CAPVEHICLE:TERRITORY_SUB_CODE = SFSTERRITORY_ALIAS:SUB_CODE
+        Activehelp SFSTERRITORY_ALIAS:TERRITORY,
+                   SFSTERRITORY_ALIAS:DESCRIPTION ,
+                   SFSTERRITORY_ALIAS:SUB_CODE ;
+902     Begin
+        If FUNCTION = "CHANGE" Then
+            CAPVEHICLE:TERRITORY_DESCRIPTION = SFSTERRITORY_ALT:DESCRIPTION
+        End
+        CAPVEHICLE:TERRITORY_DESCRIPTION/default/uppercase ;
+1001    Begin
+        If FUNCTION = "ADD" Then
+            CAPVEHICLE:STR_ZIPCODE = SFPNAME:STR_ZIPCODE
+        End
+        CAPVEHICLE:STR_ZIPCODE/default ;
+1001    Begin
+        If CAPVEHICLE:STR_ZIPCODE[6,9] = "" Then
+            CAPVEHICLE:STR_ZIPCODE[6,9] = "0000"
+        End
+        CAPVEHICLE:STR_ZIPCODE/displayonly ;
+1101    Begin
+        If FUNCTION = "ADD" Then
+            CAPVEHICLE:YEAR = CASDEFAULT:AUTO_YEAR
+        End
+        CAPVEHICLE:YEAR/default          Mandatory
+        If CAPVEHICLE:YEAR < 1900 Then
+             Error 4017 ;
+1201    CAPVEHICLE:MAKE                  Mandatory ;
+1301    CAPVEHICLE:MODEL ;
+1401    CAPVEHICLE:SERIAL_NO             Mandatory ;
+1501    Begin
+        If FUNCTION = "ADD" Then
+            CAPVEHICLE:TYPE = CASDEFAULT:TYPE
+        If FUNCTION = "ADD" And
+           SECURITY < 65 Then
+            Activehelp()
+        End
+        CAPVEHICLE:TYPE/default
+        If CAPVEHICLE:TYPE <> CASTYPE:TYPE Or
+           CAPVEHICLE:TYPE = 0 Then
+            Error 1262
+
+        Activehelp CASTYPE_ALIAS:TYPE,
+                   CASTYPE_ALIAS:DESCRIPTION ;
+1502    Begin
+        If CAPVEHICLE:STATE = 29 Then
+            Begin
+            If CAPVEHICLE:TYPE = 2 Or
+               CAPVEHICLE:TYPE = 5 Or
+               CAPVEHICLE:TYPE = 7 Then
+                CAPVEHICLE:NO_FAULT = "Y"
+            End
+        End
+        CASTYPE:DESCRIPTION;
+1601    Begin
+        If FUNCTION = "ADD" Then
+            CAPVEHICLE:CLASS_CODE = CASDEFAULT:CLASS_CODE
+        End
+        CAPVEHICLE:CLASS_CODE/default
+        If CAPVEHICLE:CLASS_CODE <> CASCLASS:CLASS_CODE Or
+           CAPVEHICLE:CLASS_CODE = 0 Then
+            Error 4003
+
+        Activehelp CASCLASS_ALIAS:CLASS_CODE ,
+                   CASCLASS_ALIAS:DESCRIPTION ;
+1602    CASCLASS:DESCRIPTION;
+
+}
+
+End

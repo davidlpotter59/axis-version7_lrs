@@ -1,0 +1,2592 @@
+%%                      
+Program
+        Name = "Lrsup600" ;
+        Type = "File" ;
+        Domain = "FLAT" ;
+        Padcharacter = Space ;
+/*  Operational notes
+
+    1) liability - unless otherwise explicitly required by the client is
+       processed as follows:
+       a) LAE is part of the loss
+       b) no Ceded recovery is process until the Case Loss Paid
+          exceeds the liability retention
+    2) Property
+       a) LAE is part of the loss
+       b) no Ceded recovery is process until the Case Loss Paid
+          exceeds the liability retention
+
+  2) Property
+         a) lae is a percentage of the Case loss paid compared to
+            the property retention
+
+  October 21 - 26, 2005
+
+  this program was rewritten to remove the loss summary (lrssummary) file
+*/
+        Global String G_COMPANY_ID[10];
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_LINE_OF_BUSINESS[4] ;
+        Global String G_LOB_SUBLINE[2] ;
+        Global Unsigned Ascii Number G_CAUSE_OF_LOSS[4] ;
+        Global String G_CAUSE_LOSS_SUBLINE[2] ;
+        Global Unsigned Ascii Number G_TRANS_TYPE[2] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+        Global Unsigned Ascii Number G_TREATY_NUMBER[5] ;
+        Global Unsigned Ascii Number G_TREATY_SUB_CODE[4] ;
+
+        Local Signed Ascii Number L_PROPERTY_EXCESS[11]=0/decimals=2;
+        Local Signed Ascii Number L_LIABILITY_EXCESS[11]=0/decimals=2;
+        Unsigned Ascii Number L_DIRECT[8]=0/decimals=2;
+        Unsigned Ascii Number L_PROPERTY_RETENTION[8]=0/decimals=0;
+        Unsigned Ascii Number L_LIABILITY_RETENTION[8]=0/decimals=0;
+        Unsigned Ascii Number L_PROPERTY_XOL[11]=0/decimals=2;
+        Unsigned Ascii Number L_PROPERTY_SURPLUS[11]=0/decimals=2;
+
+        /* percentages for direct and ceded */
+        Unsigned Ascii Number L_DIRECT_PERCENT[5]=0/decimals=4,
+                              L_SURPLUS_PERCENT[5]=0/decimals=4,
+                              L_USE_DATE_OF_LOSS[1]=0/decimals=0;
+
+        String L_ENTER[1];
+
+        Signed Ascii Number L_DIRECT_LAE[8]=0/decimals=2,
+                            L_PROPERTY_XOL_LAE[8]=0/decimals=2,
+                            L_SURPLUS_LAE[8]=0/decimals=2;
+
+        Signed Ascii Number L_TOTAL_CASE[11]=0/decimals=2;
+        Signed Ascii Number L_TOTAL_LAE[8]=0/decimals=2;
+
+/* these arrays are for the liability treaties, at the time that this
+   system was written there were only 3 active treaties, making the
+   the internal table handle 10 would give growth to the needs
+*/
+        Array[10] Of Signed Ascii Number L_LIAB[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_LIAB_PAID[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_LIAB_PERCENT[5]/decimals=4;
+        Array[10] Of Signed Ascii Number L_LIAB_LAE[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_LIAB_LAE_PAID[11]/decimals=2;
+        Array[10] Of Unsigned Ascii Number L_LIAB_REINS_CO[5]/decimals=0;
+
+/* property arrays
+   logic added 02/09/2003 - dlp */
+        Array[10] Of Signed Ascii Number L_PROP[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_PROP_PAID[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_PROP_PERCENT[5]/decimals=4;
+        Array[10] Of Signed Ascii Number L_PROP_LAE[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_PROP_LAE_PAID[11]/decimals=2;
+        Array[10] Of Signed Ascii Number L_PROP_XS_PERCENT[6]/decimals=5;
+        Array[10] Of Unsigned Ascii Number L_PROP_REINS_CO[5]/decimals=0;
+
+        Signed Ascii Number L_DIRECT_LIAB[11]=0/decimals=2;
+        Signed Ascii Number L_DIRECT_LIAB_PERCENT[5]=0/decimals=4;
+        Signed Ascii Number L_DIRECT_LIAB_LAE[8]=0/decimals=2;
+        Signed Ascii Number L_REMAINING_LAE[8]=0/decimals=2;
+
+        Signed Ascii Number L_PROP_LAE_RESERVE_PERCENT[6]=0/dec=5;
+        Signed Ascii Number L_LIAB_TOTAL_INCURRED[11]=0/decimals=2;
+        Signed Ascii Number L_LIAB_TOTAL_REMAINING[11]=0/decimals=2;
+        Unsigned Ascii Number L_LIAB_SUB[2]=0/decimals=0;
+        Unsigned Ascii Number L_PROP_SUB[2]=0/decimals=0;
+        Unsigned Ascii Number L_SURPLUS_RETENTION[7]=0/decimals=0;
+        Unsigned Ascii Number L_TOTAL_AMOUNT_SUBJECT[11]=0/decimals=0;
+        Signed Ascii Number L_PROP_TOTAL_REMAINING[11]=0/decimals=2;
+
+        String L_LINE_TYPE[1] ;
+
+String L_REINS_OUTFILE[15]="lrsup600.out";
+String L_LOGFILE[15]="lrsup600.log";
+
+Unsigned Ascii Number L_LINE_OF_BUSINESS[4]=0/decimals=0;
+String L_LOB_SUBLINE[2];
+Unsigned Ascii Number L_SUB_CODE[4]=0/decimals=0;
+Signed Ascii Number L_QUOTA_SHARE_CEDED[11]=0/decimals=2;
+Signed Ascii Number L_QUOTA_SHARE_SUBJECT[11]=0/decimals=2;
+Signed Ascii Number L_QUOTA_SHARE_LAE[8]=0/decimals=2;
+Unsigned Ascii Number L_QUOTA_SHARE_PERCENT[6]=0/decimals=5;
+Unsigned Ascii Number L_QUOTA_SHARE_TREATY_NUMBER[5]=0/decimals=0;
+Unsigned Ascii Number L_SURPLUS_TREATY_NUMBER[5]=0/decimals=0;
+Unsigned Ascii Number L_PROPERTY_XOL_TREATY_NUMBER[5]=0/decimals=0;
+
+/* Reinsurance Recoverable Variables */
+Signed Ascii Number L_QUOTA_SHARE_CASE_RECOVER[11]=0/decimals=2,
+                    L_SURPLUS_CASE_RECOVER[11]=0/decimals=2,
+                    L_DIRECT_CASE_RECOVER[11]=0/decimals=2,
+                    L_XOL_CASE_RECOVER[11]=0/decimals=2,
+                    L_QUOTA_SHARE_LAE_RECOVER[11]=0/decimals=2,
+                    L_SURPLUS_LAE_RECOVER[11]=0/decimals=2,
+                    L_DIRECT_LAE_RECOVER[11]=0/decimals=2,
+                    L_XOL_LAE_RECOVER[11]=0/decimals=2,
+                    L_TOTAL_PAID_REMAINING[11]=0/decimals=2,
+                    L_TOTAL_PAID_LAE[11]=0/decimals=2,
+                    L_TOTAL_DIRECT_LIAB_RECOVER[11]=0/decimals=2,
+                    L_TOTAL_DIRECT_LIAB_LAE_RECOVER[11]=0/decimals=2,
+                    L_TOTAL_LIAB_PAID_REMAINING[11]=0/decimals=2,
+                    L_TOTAL_LIAB_PAID[11]/decimals=2,
+                    L_TOTAL_LIAB_LAE_PAID[11]=0/decimals=2;
+Unsigned Ascii Number L_QUOTA_SHARE_LIMIT[11]=0/decimals=0;
+Unsigned Ascii Number L_REINS_CODE[5]=0/decimals=0;
+Signed Ascii Number L_DIFFERENT_RESV[11]=0;
+Unsigned Ascii Number L_TRANS_CODE[2]=0;
+Signed Ascii Number L_DIFFERENT_LAE_RESV[11]=0;
+Unsigned Ascii Number L_LRSDETAIL_SUB_CODE[5]=0;
+String L_SUBLINE[2];
+Signed Ascii Number L_DIFFERENT_PAID[11]=0/decimals=2;
+Signed Ascii Number L_DIFFERENT_LAE_PAID[11]=0/decimals=2;
+String L_UPDATED_LRSCEDEDWRK[1]="N";
+
+Signed Ascii Number L_PROP_TOTAL_CASE_LAE[11]=0/decimals=2;
+String L_MAXIMUM_QUOTA_SHARE[1]="N";
+
+/* reserve variables for treties */
+
+Signed Ascii Number L_QUOTA_SHARE_LAE_RESERVE[11]=0/decimals=0,
+                    L_QUOTA_SHARE_LAE_RECOVERY[11]=0/decimals=2,
+                    L_SURPLUS_LAE_RESERVE[11]=0/decimals=0,
+                    L_SURPLUS_LAE_RECOVERY[11]=0/decimals=2,
+                    L_PROP_XOL_LAE_RESERVE[11]=0/decimals=0,
+                    L_PROP_XOL_LAE_RECOVERY[11]=0/decimals=2;
+
+Signed Ascii Number L_TOTAL_LAE_RESERVE[11]=0/decimals=0,
+                    L_TOTAL_LAE_PAID[11]=0/decimals=2;
+Unsigned Ascii Number L_LIAB_CTR[3]=0/decimals=0;
+Signed Ascii Number L_LIAB_TOTAL_INCURRED_REMAINING[11]=0/decimals=2;
+Signed Ascii Number L_DIFFERENT_LAE[11]=0/decimals=2;
+Unsigned Ascii Number L_TREATY_LIMIT[11]=0/decimals=0;
+
+/* liability querynames */
+Signed Ascii Number L_REMAINING_RETENTION[11]=0/decimals=2,
+                    L_LOSS_RESERVE_REMAINING[11]=0/decimals=2,
+                    L_LOSS_PAID_REMAINING[11]=0/decimals=2,
+                    L_LAE_RESERVE_REMAINING[11]=0/decimals=2,
+                    L_LAE_PAID_REMAINING[11]=0/decimals=2,
+                    L_NET_LOSS_RESERVE[11]=0/decimals=2,
+                    L_NET_LOSS_PAID[11]=0/decimals=2,
+                    L_NET_LAE_RESERVE[11]=0/decimals=2,
+                    L_NET_LAE_PAID[11]=0/decimals=2,
+                    L_TREATY_LIMIT_REMAINING[11]=0/decimals=2;
+
+/* property querynames
+   logic added 02/09/2003 - dlp
+*/
+Signed Ascii Number L_PROP_REMAINING_RETENTION[11]=0/decimals=2,
+                    L_PROP_LOSS_RESERVE_REMAINING[11]=0/decimals=2,
+                    L_PROP_LOSS_PAID_REMAINING[11]=0/decimals=2,
+                    L_PROP_LAE_RESERVE_REMAINING[11]=0/decimals=2,
+                    L_PROP_LAE_PAID_REMAINING[11]=0/decimals=2,
+                    L_PROP_NET_LOSS_RESERVE[11]=0/decimals=2,
+                    L_PROP_NET_LOSS_PAID[11]=0/decimals=2,
+                    L_PROP_NET_LAE_RESERVE[11]=0/decimals=2,
+                    L_PROP_NET_SURPLUS_LAE_RESERVE[11]=0/dec=2,
+                    L_PROP_NET_SURPLUS_RESERVE[11]=0/dec=2,
+                    L_PROP_NET_LAE_PAID[11]=0/decimals=2,
+                    L_PROP_TREATY_LIMIT_REMAINING[11]=0/decimals=2,
+                    L_PROP_SURPLUS_LOSS_RESERVE[11]=0/decimals=2,
+                    L_PROP_SURPLUS_LOSS_PAID[11]=0/decimals=2,
+                    L_PROP_SURPLUS_LAE_RESERVE[11]=0/decimals=2,
+                    L_PROP_SURPLUS_LAE_PAID[11]=0/decimals=2;
+
+Unsigned Ascii Number L_LINE_NUMBER[5]=0/decimals=0;
+Signed Ascii Number L_LIAB_PAID_OVER_RETENTION[11]=0/decimals=2;
+Unsigned Ascii Number L_PROP_LAE_PERCENT[5]=0/decimals=4;
+
+Wdate L_TRANS_DATE;
+Unsigned Ascii Number L_PERCENT_TO_SURPLUS[5]=0/decimals=4;
+Unsigned Ascii Number L_TEMP_XOL_TREATY_NUMBER[5]=0/dec=0;
+
+Unsigned Ascii Number L_LOSS_SURPLUS_RETENTION[8]=0/decimals=0,
+                      L_PREM_SURPLUS_RETENTION[8]=0/decimals=0,
+                      L_PREM_SURPLUS_PERCENT[5]=0/decimals=4;
+
+/* hold values for control breaks */
+
+String L_HOLD_COMPANY_ID[10],
+       L_HOLD_LOB_SUBLINE[2],
+       L_HOLD_CAUSE_OF_LOSS_SUBLINE[2];
+
+Unsigned Ascii Number L_HOLD_CLAIM_NO[11];
+
+Signed Ascii Number L_HOLD_LOSS_RESERVE[7]=0/decimals=0,
+                    L_HOLD_ALAE_RESERVE[7]=0/decimals=0,
+                    L_HOLD_ULAE_RESERVE[7]=0/decimals=0,
+                    L_HOLD_LOSS_PAID[9]=0/decimals=2,
+                    L_HOLD_ALAE_PAID[9]=0/decimals=2,
+                    L_HOLD_ULAE_PAID[9]=0/decimals=2;
+
+Unsigned Ascii Number L_HOLD_LINE_OF_BUSINESS[4]=0/decimals=0,
+                      L_HOLD_CAUSE_OF_LOSS[4]=0/decimals=0,
+                      L_HOLD_TRANS_TYPE[2]=0/decimals=0;
+
+Date L_HOLD_TRANS_DATE,
+      L_STARTING_DATE,
+      L_ENDING_DATE;
+
+Unsigned Ascii Number L_CTR[5]=0/decimals=0;
+Unsigned Ascii Number L_HIT[9]=0/decimals=0;
+
+        Include "STDKEYS.INC"
+
+Initialisation
+
+Write ("<014>")
+
+Proc (":cli lrscededwrk.mk")
+
+G_CLAIM_NO            = Val(COMMANDLINE[1,11])
+L_STARTING_DATE       = Date(COMMANDLINE[12,19])
+L_ENDING_DATE         = Date(COMMANDLINE[20,27])
+L_UPDATED_LRSCEDEDWRK = "N"
+
+If L_STARTING_DATE = 00.00.0000 Then
+Begin
+    L_STARTING_DATE = TODAYSDATE
+    L_ENDING_DATE   = TODAYSDATE
+End
+
+If L_TRANS_DATE = 00.00.0000 Then
+Begin
+    L_TRANS_DATE = L_ENDING_DATE
+End
+
+
+Write ("<014>")
+Write ("%c%s%",01020,"Processing lrsup600 - Version 7.22 [Debugging]<NL>")
+Write ("%c%s%d",03020,"Ending Date        = ",L_ENDING_DATE)
+Write ("%c%s%n",05020,"Claim Number       = ",G_CLAIM_NO)
+Write ("Processing lrsup600 - [Debugging]<NL>")
+
+Deletefile(L_LOGFILE)
+
+if g_claim_no = 0 then -- coming from the lrs system not batch
+begin
+    Readfile (L_REINS_OUTFILE,G_COMPANY_ID)
+    Readfile (L_REINS_OUTFILE,G_CLAIM_NO)
+    Readfile (L_REINS_OUTFILE,G_LINE_OF_BUSINESS)
+    Readfile (L_REINS_OUTFILE,G_LOB_SUBLINE)
+    Readfile (L_REINS_OUTFILE,G_CAUSE_OF_LOSS)
+    Readfile (L_REINS_OUTFILE,G_CAUSE_LOSS_SUBLINE)
+    Readfile (L_REINS_OUTFILE,G_TRANS_TYPE)
+    Readfile (L_REINS_OUTFILE,G_SUB_CODE)
+    g_company_id  = g_company_id
+    g_claim_no    = g_claim_no
+end
+
+Proc(":cli lrscededwrk.mk")/noconsole
+
+Deletefile(L_LOGFILE)
+
+L_HOLD_CLAIM_NO = 0
+
+-- G_COMPANY_ID = "FLEMINGTON"
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID         = G_COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO           = G_CLAIM_NO, Approximate
+
+While LRSDETAIL:COMPANY_ID = G_COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = G_CLAIM_NO
+      Begin
+
+Write ("%c%s%n",07020,"Claim Number Processing ...... ",LRSDETAIL:CLAIM_NO)
+
+If LRSDETAIL:TRANS_CODE < 30 And
+   LRSDETAIL:CLAIM_NO   = G_CLAIM_NO And
+   (LRSDETAIL:TRANS_DATE >= L_STARTING_DATE And
+    LRSDETAIL:TRANS_DATE <= L_ENDING_DATE)
+Then
+Begin
+
+G_CLAIM_NO = LRSDETAIL:CLAIM_NO
+
+L_CTR = L_CTR + 1
+If L_CTR Mod 100 = 0 Then
+Begin
+    Write ("%c%s%n",10020,"Counter = ",L_CTR)
+End
+
+If L_HOLD_CLAIM_NO = 0 Then -- this is the first pass
+Begin
+    L_HOLD_COMPANY_ID            = LRSDETAIL:COMPANY_ID
+    L_HOLD_CLAIM_NO              = LRSDETAIL:CLAIM_NO
+    L_HOLD_LINE_OF_BUSINESS      = LRSDETAIL:LINE_OF_BUSINESS
+    L_HOLD_LOB_SUBLINE           = LRSDETAIL:LOB_SUBLINE
+    L_HOLD_CAUSE_OF_LOSS         = LRSDETAIL:CAUSE_OF_LOSS
+    L_HOLD_CAUSE_OF_LOSS_SUBLINE = LRSDETAIL:CAUSE_LOSS_SUBLINE
+    L_HOLD_TRANS_TYPE            = 01
+--    L_HOLD_TRANS_DATE            = LRSDETAIL:TRANS_DATE
+    L_HOLD_TRANS_DATE            = L_TRANS_DATE
+
+    Access LRSCEDED, Set LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID,
+                         LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO, Generic
+
+    While LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID And
+          LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO
+    Begin
+        Do CREATE_WORK_RECORDS
+--        Delete LRSCEDED
+
+    Next LRSCEDED
+    End
+
+End
+
+If L_HOLD_CLAIM_NO <> LRSDETAIL:CLAIM_NO And
+   L_HOLD_CLAIM_NO <> 0 Then Begin
+   If L_HOLD_LOB_SUBLINE <> "YY" Then  -- add December 13 not to include
+        Begin
+            Do HOUSE_KEEPING
+            Do GET_PRSRECONTROL
+
+        L_SURPLUS_RETENTION = 0
+
+        Access PRSTREATY, Set PRSTREATY:COMPANY_ID = L_HOLD_COMPANY_ID, Approximate
+        While PRSTREATY:COMPANY_ID = L_HOLD_COMPANY_ID And
+              L_SURPLUS_RETENTION  = 0
+        Begin
+            If PRSTREATY:TREATY_TYPE = "S" And
+               LRSSETUP:LOSS_DATE >= PRSTREATY:EFF_DATE And
+               LRSSETUP:LOSS_DATE <= PRSTREATY:EXP_DATE Then
+               Begin
+                   L_SURPLUS_RETENTION = PRSTREATY:UPPER_LIMIT
+               End
+        Next PRSTREATY
+
+        End -- end of loop
+
+        /* need to access the sfscause file */
+        Access LRSSETUP, Set LRSSETUP:COMPANY_ID         = L_HOLD_COMPANY_ID,
+                             LRSSETUP:CLAIM_NO           = L_HOLD_CLAIM_NO, Exact
+
+        L_LINE_OF_BUSINESS = L_HOLD_LINE_OF_BUSINESS
+        L_LOB_SUBLINE      = L_HOLD_LOB_SUBLINE
+
+        Access SFSCAUSE, Set SFSCAUSE:COMPANY_ID         = L_HOLD_COMPANY_ID,
+                             SFSCAUSE:LINE_OF_BUSINESS   = L_HOLD_LINE_OF_BUSINESS,
+                             SFSCAUSE:LOB_SUBLINE        = L_HOLD_LOB_SUBLINE,
+                             SFSCAUSE:CAUSE_OF_LOSS      = L_HOLD_CAUSE_OF_LOSS,
+                             SFSCAUSE:CAUSE_LOSS_SUBLINE = L_HOLD_CAUSE_OF_LOSS_SUBLINE, Exact
+
+        Switch(L_LINE_TYPE)
+        Case "P"        : L_LINE_TYPE = "P"
+        Default         : L_LINE_TYPE = "L"
+        End
+
+        L_LINE_TYPE = SFSCAUSE:LINE_TYPE
+
+        Access LRSCEDED, Set LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID,
+                             LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO,
+                             LRSCEDED:LINE_TYPE  = L_LINE_TYPE, Generic
+
+        If LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID And
+           LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO And
+           LRSCEDED:LINE_TYPE  = L_LINE_TYPE Then
+            Begin
+                Do CHANGE_LRSCEDED
+            End
+            Else
+            Begin
+                Do ADD_LRSCEDED
+            End
+
+    If L_UPDATED_LRSCEDEDWRK One Of "N" Then
+        Begin
+            Do CREATE_ZERO_RECORD_LRSCEDEDWRK
+        End
+
+    Do CREATE_REINSURANCE_TRANSACTIONS
+/* control break cleaning out */
+
+       Proc (":cli lrscededwrk.mk")/noconsole
+
+       L_HOLD_COMPANY_ID            = ""
+       L_HOLD_CLAIM_NO              = 0
+       L_HOLD_LOSS_RESERVE          = 0
+       L_HOLD_LOSS_PAID             = 0.00
+       L_HOLD_ULAE_RESERVE          = 0
+       L_HOLD_ALAE_RESERVE          = 0
+       L_HOLD_ULAE_PAID             = 0.00
+       L_HOLD_ALAE_PAID             = 0.00
+       L_HOLD_LINE_OF_BUSINESS      = 0
+       L_HOLD_LOB_SUBLINE           = ""
+       L_HOLD_CAUSE_OF_LOSS         = 0
+       L_HOLD_CAUSE_OF_LOSS_SUBLINE = ""
+       L_HOLD_TRANS_TYPE            = 0
+       L_HOLD_TRANS_DATE            = 00.00.0000
+
+       L_HOLD_COMPANY_ID            = LRSDETAIL:COMPANY_ID
+       L_HOLD_CLAIM_NO              = LRSDETAIL:CLAIM_NO
+       L_HOLD_LOSS_RESERVE          = LRSDETAIL:LOSS_RESV
+       L_HOLD_LOSS_PAID             = LRSDETAIL:LOSS_PAID
+       L_HOLD_LINE_OF_BUSINESS      = LRSDETAIL:LINE_OF_BUSINESS
+       L_HOLD_LOB_SUBLINE           = LRSDETAIL:LOB_SUBLINE
+       L_HOLD_CAUSE_OF_LOSS         = LRSDETAIL:CAUSE_OF_LOSS
+       L_HOLD_CAUSE_OF_LOSS_SUBLINE = LRSDETAIL:CAUSE_LOSS_SUBLINE
+       L_HOLD_TRANS_TYPE            = 01
+       If LRSDETAIL:LOSS_RESV <> 0 Or
+          LRSDETAIL:LOSS_PAID <> 0.00 Then
+          Begin
+--              L_HOLD_TRANS_DATE            = LRSDETAIL:TRANS_DATE
+                L_HOLD_TRANS_DATE            = L_TRANS_DATE
+          End
+
+       If LRSDETAIL:ULAE One Of "Y" Then
+       Begin
+           L_HOLD_ULAE_RESERVE = LRSDETAIL:LAE_RESV
+           L_HOLD_ULAE_PAID    = LRSDETAIL:LAE_PAID
+       End
+
+       If LRSDETAIL:ALAE One Of "Y" Then
+       Begin
+           L_HOLD_ALAE_RESERVE = LRSDETAIL:LAE_RESV
+           L_HOLD_ALAE_PAID    = LRSDETAIL:LAE_PAID
+       End
+
+       End
+
+       End
+    Else
+    Begin
+       If LRSDETAIL:LOSS_RESV <> 0 Or
+          LRSDETAIL:LOSS_PAID <> 0.00 Then
+          Begin
+--              L_HOLD_TRANS_DATE   = LRSDETAIL:TRANS_DATE
+                L_HOLD_TRANS_DATE   = L_TRANS_DATE
+          End
+       L_HOLD_LOSS_RESERVE = L_HOLD_LOSS_RESERVE + LRSDETAIL:LOSS_RESV
+       L_HOLD_LOSS_PAID    = L_HOLD_LOSS_PAID    + LRSDETAIL:LOSS_PAID
+       If LRSDETAIL:ULAE One Of "Y" Then
+       Begin
+           L_HOLD_ULAE_RESERVE = L_HOLD_ULAE_RESERVE + LRSDETAIL:LAE_RESV
+           L_HOLD_ULAE_PAID    = L_HOLD_ULAE_PAID    + LRSDETAIL:LAE_PAID
+       End
+
+       If LRSDETAIL:ALAE One Of "Y" Then
+       Begin
+           L_HOLD_ALAE_RESERVE = L_HOLD_ALAE_RESERVE + LRSDETAIL:LAE_RESV
+           L_HOLD_ALAE_PAID    = L_HOLD_ALAE_PAID    + LRSDETAIL:LAE_PAID
+       End
+
+    End -- end of else
+/* get surplus retention from prstreaty file */
+
+    End -- end of checking for trans code < 30
+
+    Next LRSDETAIL
+
+    End
+
+Update
+
+Error
+Write ("%c%s%s",05001,"Error Encountered : ",ERRORTEXT)
+
+Screen Exit
+Write ("%c%s",10020,"Screen Exit ")
+
+--If L_HOLD_LOB_SUBLINE = "XX" Then
+   If L_HOLD_LOB_SUBLINE <> "YY" And
+      L_HOLD_CLAIM_NO <> 0 Then  -- add December 13 not to include
+        Begin
+            Do HOUSE_KEEPING
+            Do GET_PRSRECONTROL
+
+        L_SURPLUS_RETENTION = 0
+
+        Access PRSTREATY, Set PRSTREATY:COMPANY_ID = L_HOLD_COMPANY_ID, Approximate
+        While PRSTREATY:COMPANY_ID = L_HOLD_COMPANY_ID And
+              L_SURPLUS_RETENTION  = 0
+        Begin
+            If PRSTREATY:TREATY_TYPE = "S" And
+               LRSSETUP:LOSS_DATE >= PRSTREATY:EFF_DATE And
+               LRSSETUP:LOSS_DATE <= PRSTREATY:EXP_DATE Then
+               Begin
+                   L_SURPLUS_RETENTION = PRSTREATY:UPPER_LIMIT
+               End
+        Next PRSTREATY
+
+        End -- end of loop
+
+        /* need to access the sfscause file */
+        Access LRSSETUP, Set LRSSETUP:COMPANY_ID         = L_HOLD_COMPANY_ID,
+                             LRSSETUP:CLAIM_NO           = L_HOLD_CLAIM_NO, Exact
+
+        L_LINE_OF_BUSINESS = L_HOLD_LINE_OF_BUSINESS
+        L_LOB_SUBLINE      = L_HOLD_LOB_SUBLINE
+
+        Access SFSCAUSE, Set SFSCAUSE:COMPANY_ID         = L_HOLD_COMPANY_ID,
+                             SFSCAUSE:LINE_OF_BUSINESS   = L_HOLD_LINE_OF_BUSINESS,
+                             SFSCAUSE:LOB_SUBLINE        = L_HOLD_LOB_SUBLINE,
+                             SFSCAUSE:CAUSE_OF_LOSS      = L_HOLD_CAUSE_OF_LOSS,
+                             SFSCAUSE:CAUSE_LOSS_SUBLINE = L_HOLD_CAUSE_OF_LOSS_SUBLINE, Generic
+
+        Switch(SFSCAUSE:LINE_TYPE)
+        Case "P"        : L_LINE_TYPE = "P"
+        Default         : L_LINE_TYPE = "L"
+        End
+
+--        L_LINE_TYPE = SFSCAUSE:LINE_TYPE
+
+
+        Access LRSCEDED, Set LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID,
+                             LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO,
+                             LRSCEDED:LINE_TYPE  = L_LINE_TYPE, Generic
+
+        If LRSCEDED:COMPANY_ID = L_HOLD_COMPANY_ID And
+           LRSCEDED:CLAIM_NO   = L_HOLD_CLAIM_NO And
+           LRSCEDED:LINE_TYPE  = L_LINE_TYPE Then
+            Begin
+                Do CHANGE_LRSCEDED
+            End
+            Else
+            Begin
+                Do ADD_LRSCEDED
+            End
+
+    If L_UPDATED_LRSCEDEDWRK One Of "N" Then
+        Begin
+            Do CREATE_ZERO_RECORD_LRSCEDEDWRK
+        End
+
+    Do CREATE_REINSURANCE_TRANSACTIONS
+
+    End
+
+If LRSCEDED:COMPANY_ID > "" Then G_COMPANY_ID = LRSCEDED:COMPANY_ID ;
+If LRSCEDED:CLAIM_NO > 0 Then G_CLAIM_NO = LRSCEDED:CLAIM_NO ;
+If LRSCEDED:CAUSE_OF_LOSS > 0
+    Then G_CAUSE_OF_LOSS = LRSCEDED:CAUSE_OF_LOSS ;
+If LRSCEDED:CAUSE_LOSS_SUBLINE > ""
+    Then G_CAUSE_LOSS_SUBLINE = LRSCEDED:CAUSE_LOSS_SUBLINE ;
+If LRSCEDED:TRANS_TYPE > 0 Then G_TRANS_TYPE = LRSCEDED:TRANS_TYPE ;
+If LRSCEDED:SURPLUS_TREATY_NUMBER > 0
+    Then G_TREATY_NUMBER = LRSCEDED:SURPLUS_TREATY_NUMBER ;
+If LRSCEDED:TREATY_SUB_CODE > 0
+    Then G_TREATY_SUB_CODE = LRSCEDED:TREATY_SUB_CODE ;
+
+Procedure Definition
+
+Procedure CREATE_WORK_RECORDS
+Begin
+
+    Access LRSCEDEDWRK, Set LRSCEDEDWRK:COMPANY_ID = LRSCEDED:COMPANY_ID,
+                            LRSCEDEDWRK:CLAIM_NO   = LRSCEDED:CLAIM_NO, Approximate
+
+    If LRSCEDEDWRK:COMPANY_ID <> LRSCEDED:COMPANY_ID Or
+       LRSCEDEDWRK:CLAIM_NO   <> LRSCEDED:CLAIM_NO Or
+       LRSCEDEDWRK:LINE_TYPE  <> LRSCEDED:LINE_TYPE Then
+       Begin
+       Add LRSCEDEDWRK
+       Begin
+           LRSCEDEDWRK:COMPANY_ID     = LRSCEDED:COMPANY_ID
+           LRSCEDEDWRK:CLAIM_NO       = LRSCEDED:CLAIM_NO
+           LRSCEDEDWRK:LINE_TYPE      = LRSCEDED:LINE_TYPE
+           LRSCEDEDWRK:RECORD_RDF     = LRSCEDED:RECORD_RDF/raw
+       End
+       L_UPDATED_LRSCEDEDWRK = "Y"
+       End
+
+End -- end of procedure
+
+Procedure CREATE_ZERO_RECORD_LRSCEDEDWRK
+Begin
+
+    Access LRSCEDEDWRK, Set LRSCEDEDWRK:COMPANY_ID = L_HOLD_COMPANY_ID,
+                            LRSCEDEDWRK:CLAIM_NO   = L_HOLD_CLAIM_NO,
+                            LRSCEDEDWRK:LINE_TYPE  = L_LINE_TYPE
+
+    If LRSCEDEDWRK:COMPANY_ID <> L_HOLD_COMPANY_ID Or
+       LRSCEDEDWRK:CLAIM_NO   <> L_HOLD_CLAIM_NO Or
+       LRSCEDEDWRK:LINE_TYPE  <> L_LINE_TYPE Then
+       Begin
+       Add LRSCEDEDWRK
+       Begin
+           LRSCEDEDWRK:RECORD     = " "/raw
+           LRSCEDEDWRK:COMPANY_ID = L_HOLD_COMPANY_ID
+           LRSCEDEDWRK:CLAIM_NO   = L_HOLD_CLAIM_NO
+           LRSCEDEDWRK:LINE_TYPE  = L_LINE_TYPE
+       End
+
+       End
+
+End -- end of procedure
+
+Procedure CHANGE_LRSCEDED
+Begin
+
+        Change LRSCEDED
+            Begin
+            LRSCEDED:LOSS_RESV                  =       L_HOLD_LOSS_RESERVE +
+                                                        LRSCEDED:LOSS_RESV
+            LRSCEDED:LOSS_PAID                  =       L_HOLD_LOSS_PAID +
+                                                        LRSCEDED:LOSS_PAID
+            LRSCEDED:ULAE_RESV                  =       L_HOLD_ULAE_RESERVE +
+                                                        LRSCEDED:ULAE_RESV
+            LRSCEDED:ULAE_PAID                  =       L_HOLD_ULAE_PAID +
+                                                        LRSCEDED:ULAE_PAID
+            LRSCEDED:ALAE_RESV                  =       L_HOLD_ALAE_RESERVE +
+                                                        LRSCEDED:ALAE_RESV
+            LRSCEDED:ALAE_PAID                  =       L_HOLD_ALAE_PAID +
+                                                        LRSCEDED:ALAE_PAID
+            LRSCEDED:TOTAL_AMOUNT_CEDED         =       LRSCEDED:LOSS_RESV +
+                                                        LRSCEDED:LOSS_PAID +
+                                                        LRSCEDED:ULAE_RESV +
+                                                        LRSCEDED:ULAE_PAID +
+                                                        LRSCEDED:ALAE_RESV +
+                                                        LRSCEDED:ALAE_PAID
+            LRSCEDED:TOTAL_CASE                 =       LRSCEDED:LOSS_RESV + LRSCEDED:LOSS_PAID
+            LRSCEDED:TOTAL_LAE                  =       LRSCEDED:ULAE_PAID + LRSCEDED:ULAE_RESV +
+                                                        LRSCEDED:ALAE_PAID + LRSCEDED:ALAE_PAID
+
+            If L_LINE_TYPE = "P" Then
+                Begin
+                Do CALCULATE_PROPERTY
+                LRSCEDED:AMOUNT_SUBJECT         =       L_TOTAL_AMOUNT_SUBJECT
+                LRSCEDED:PROPERTY_SURPLUS       =       L_PROP_SURPLUS_LOSS_RESERVE
+                LRSCEDED:SURPLUS_CASE_RESERVE   =       L_PROP_SURPLUS_LOSS_RESERVE
+                LRSCEDED:SURPLUS_CASE_RECOVERY  =       L_PROP_SURPLUS_LOSS_PAID
+                LRSCEDED:SURPLUS_PERCENT        =       L_SURPLUS_PERCENT
+                LRSCEDED:SURPLUS_LAE            =       L_PROP_SURPLUS_LAE_RESERVE
+                LRSCEDED:SURPLUS_LAE_RESERVE    =       L_PROP_SURPLUS_LAE_RESERVE
+                LRSCEDED:SURPLUS_LAE_RECOVERY   =       L_PROP_SURPLUS_LAE_PAID
+                LRSCEDED:SURPLUS_TREATY_NUMBER  =       L_SURPLUS_TREATY_NUMBER
+                LRSCEDED:DIRECT                 =       L_DIRECT
+/* new logic for subscripting the property layers
+   august 19, 2003 - dlp */
+                For L_PROP_SUB = 1 To 6
+                Begin
+                -- XXX
+                    LRSCEDED:PROPERTY_XOL[L_PROP_SUB]   =        L_PROP[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] =   L_PROP_REINS_CO[L_PROP_SUB]
+                    LRSCEDED:XOL_CASE_RECOVERY[L_PROP_SUB] =       L_PROP_PAID[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XOL_LAE[L_PROP_SUB]  =       L_PROP_LAE[L_PROP_SUB]
+                    LRSCEDED:XOL_LAE_RECOVERY[L_PROP_SUB]  =       L_PROP_LAE_PAID[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XS_PERCENT[L_PROP_SUB] =     L_PROP_XS_PERCENT[L_PROP_SUB]
+
+                End
+                For L_PROP_SUB = 1 To 6
+                Begin
+                    If LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] = 0 Then
+                    Begin
+                        LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] =
+                        LRSCEDEDWRK:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB]
+                    End
+                End
+
+                LRSCEDED:DIRECT_PERCENT         =       L_DIRECT_PERCENT
+                LRSCEDED:DIRECT_LAE             =       L_DIRECT_LAE
+                LRSCEDED:QUOTA_SHARE            =       L_QUOTA_SHARE_CEDED
+                LRSCEDED:QUOTA_SHARE_PERCENT    =       L_QUOTA_SHARE_PERCENT
+                LRSCEDED:QUOTA_SHARE_LAE        =       L_QUOTA_SHARE_LAE
+                LRSCEDED:QUOTA_SHARE_CASE_RECOVERY =    L_QUOTA_SHARE_CASE_RECOVER
+                LRSCEDED:QUOTA_SHARE_LAE_RECOVERY  =    L_QUOTA_SHARE_LAE_RECOVER
+                LRSCEDED:QUOTA_SHARE_TREATY_NUMBER =    L_QUOTA_SHARE_TREATY_NUMBER
+                LRSCEDED:DIRECT_CASE_RECOVERY      =    L_DIRECT_CASE_RECOVER
+                LRSCEDED:DIRECT_LAE_RECOVERY       =    L_DIRECT_LAE_RECOVER
+                -- put this here to test then remove the duplicates
+                LRSCEDED:QUOTA_SHARE_LAE_RESERVE   =    L_QUOTA_SHARE_LAE_RESERVE
+                LRSCEDED:QUOTA_SHARE_LAE_RECOVERY  =    L_QUOTA_SHARE_LAE_RECOVERY
+                LRSCEDED:DIRECT_LIAB            =       0
+                LRSCEDED:DIRECT_LIAB_PERCENT    =       0
+                LRSCEDED:DIRECT_LIAB_LAE        =       0
+                LRSCEDED:PREMIUM_SURPLUS_RETENTION = L_PREM_SURPLUS_RETENTION
+                LRSCEDED:PREMIUM_SURPLUS_PERCENT   = L_PREM_SURPLUS_PERCENT
+                LRSCEDED:LOSSES_SURPLUS_RETENTION = L_LOSS_SURPLUS_RETENTION
+                For L_LIAB_CTR = 1 To 6
+                Begin
+                    LRSCEDED:LIAB[L_LIAB_CTR]              = 0
+                    LRSCEDED:LIAB_PERCENT[L_LIAB_CTR]      = 0
+                    LRSCEDED:LIAB_LAE_RESERVE[L_LIAB_CTR]  = 0
+                    LRSCEDED:LIAB_LAE_RECOVERY[L_LIAB_CTR] = 0
+                    LRSCEDED:LIAB_TREATY_NO[L_LIAB_CTR]    = 0
+                End
+                End
+            Else
+            If L_LINE_TYPE = "L" Then
+                Begin
+                Do CALCULATE_LIABILITY
+                LRSCEDED:DIRECT_LIAB            =       L_NET_LOSS_RESERVE + L_NET_LOSS_PAID
+                LRSCEDED:DIRECT_LIAB_LAE        =       L_NET_LAE_RESERVE  + L_NET_LAE_PAID
+                For L_LIAB_CTR = 1 To 6
+                Begin
+                    LRSCEDED:LIAB[L_LIAB_CTR]              = L_LIAB[L_LIAB_CTR]
+                    LRSCEDED:LIAB_CASE_RECOVERY[L_LIAB_CTR]= L_LIAB_PAID[L_LIAB_CTR]
+                    LRSCEDED:LIAB_PERCENT[L_LIAB_CTR]      = L_LIAB_PERCENT[L_LIAB_CTR]
+                    LRSCEDED:LIAB_LAE_RESERVE[L_LIAB_CTR]  = L_LIAB_LAE[L_LIAB_CTR]
+                    LRSCEDED:LIAB_LAE_RECOVERY[L_LIAB_CTR] = L_LIAB_LAE_PAID[L_LIAB_CTR]
+                    LRSCEDED:LIAB_TREATY_NO[L_LIAB_CTR]    = L_LIAB_REINS_CO[L_LIAB_CTR]
+                End
+                LRSCEDED:SURPLUS_PERCENT        =       0
+                LRSCEDED:SURPLUS_LAE            =       0
+                LRSCEDED:DIRECT                 =       0
+                LRSCEDED:DIRECT_PERCENT         =       0
+                LRSCEDED:DIRECT_LAE             =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[1]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[2]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[3]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[4]    =       0
+/* new logic for subscripting the property layers
+   august 19, 2003 - dlp */
+                For L_PROP_SUB = 1 To 6
+                Begin
+                    LRSCEDED:PROPERTY_XOL[L_PROP_SUB]   =  0.00
+                    LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] = 0.00
+                    LRSCEDED:XOL_CASE_RECOVERY[L_PROP_SUB] = 0.00
+                    LRSCEDED:PROPERTY_XOL_LAE[L_PROP_SUB]  = 0.00
+                    LRSCEDED:XOL_LAE_RECOVERY[L_PROP_SUB]  = 0.00
+                    LRSCEDED:PROPERTY_XS_PERCENT[L_PROP_SUB] = 0.00000
+                End
+                End
+            End
+End
+
+Procedure ADD_LRSCEDED
+Begin
+
+        Add LRSCEDED
+            Begin
+            LRSCEDED:COMPANY_ID                 =       L_HOLD_COMPANY_ID
+            LRSCEDED:CLAIM_NO                   =       L_HOLD_CLAIM_NO
+            LRSCEDED:LINE_TYPE                  =       L_LINE_TYPE
+            LRSCEDED:POLICY_NO                  =       LRSSETUP:POLICY_NO
+            LRSCEDED:CAUSE_OF_LOSS              =       L_HOLD_CAUSE_OF_LOSS
+            LRSCEDED:CAUSE_LOSS_SUBLINE         =       L_HOLD_CAUSE_OF_LOSS_SUBLINE
+            LRSCEDED:TRANS_TYPE                 =       L_HOLD_TRANS_TYPE
+            LRSCEDED:SURPLUS_TREATY_NUMBER      =       L_SURPLUS_TREATY_NUMBER
+            LRSCEDED:QUOTA_SHARE_TREATY_NUMBER  =       L_QUOTA_SHARE_TREATY_NUMBER
+            LRSCEDED:LOSS_RESV                  =       L_HOLD_LOSS_RESERVE
+            LRSCEDED:LOSS_PAID                  =       L_HOLD_LOSS_PAID
+            LRSCEDED:ULAE_RESV                  =       L_HOLD_ULAE_RESERVE
+            LRSCEDED:ULAE_PAID                  =       L_HOLD_ULAE_PAID
+            LRSCEDED:ALAE_RESV                  =       L_HOLD_ALAE_RESERVE
+            LRSCEDED:ALAE_PAID                  =       L_HOLD_ALAE_PAID
+            LRSCEDED:TOTAL_AMOUNT_CEDED         =       LRSCEDED:LOSS_RESV +
+                                                        LRSCEDED:LOSS_PAID +
+                                                        LRSCEDED:ULAE_RESV +
+                                                        LRSCEDED:ULAE_PAID +
+                                                        LRSCEDED:ALAE_RESV +
+                                                        LRSCEDED:ALAE_PAID
+            LRSCEDED:TOTAL_CASE                 =       LRSCEDED:LOSS_RESV + LRSCEDED:LOSS_PAID
+            LRSCEDED:TOTAL_LAE                  =       LRSCEDED:TOTAL_AMOUNT_CEDED -
+                                                        LRSCEDED:TOTAL_CASE
+
+            If L_LINE_TYPE = "P" Then
+                Begin
+                Do CALCULATE_PROPERTY
+                LRSCEDED:AMOUNT_SUBJECT         =       L_TOTAL_AMOUNT_SUBJECT
+                LRSCEDED:PROPERTY_SURPLUS       =       L_PROP_SURPLUS_LOSS_RESERVE
+                LRSCEDED:SURPLUS_CASE_RESERVE   =       L_PROP_SURPLUS_LOSS_RESERVE
+                LRSCEDED:SURPLUS_CASE_RECOVERY  =       L_PROP_SURPLUS_LOSS_PAID
+                LRSCEDED:SURPLUS_PERCENT        =       L_SURPLUS_PERCENT
+                LRSCEDED:SURPLUS_LAE            =       L_PROP_SURPLUS_LAE_RESERVE
+                LRSCEDED:SURPLUS_LAE_RESERVE    =       L_PROP_SURPLUS_LAE_RESERVE
+                LRSCEDED:SURPLUS_LAE_RECOVERY   =       L_PROP_SURPLUS_LAE_PAID
+                LRSCEDED:SURPLUS_TREATY_NUMBER  =       L_SURPLUS_TREATY_NUMBER
+                LRSCEDED:DIRECT                 =       L_DIRECT
+/* new logic for subscripting the property layers
+   august 19, 2003 - dlp */
+                For L_PROP_SUB = 1 To 6
+                Begin
+                    LRSCEDED:PROPERTY_XOL[L_PROP_SUB] =       L_PROP[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] =   L_PROP_REINS_CO[L_PROP_SUB]
+                    LRSCEDED:XOL_CASE_RECOVERY[L_PROP_SUB] =       L_PROP_PAID[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XOL_LAE[L_PROP_SUB]  =       L_PROP_LAE[L_PROP_SUB]
+                    LRSCEDED:XOL_LAE_RECOVERY[L_PROP_SUB]  =       L_PROP_LAE_PAID[L_PROP_SUB]
+                    LRSCEDED:PROPERTY_XS_PERCENT[L_PROP_SUB]  =    L_PROP_XS_PERCENT[L_PROP_SUB]
+                End
+                For L_PROP_SUB = 1 To 6
+                Begin
+                    If LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] = 0 Then
+                    Begin
+                        LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] =
+                        LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB]
+                    End
+                End
+
+                LRSCEDED:DIRECT_PERCENT         =       L_DIRECT_PERCENT
+                LRSCEDED:DIRECT_LAE             =       L_DIRECT_LAE
+                LRSCEDED:QUOTA_SHARE            =       L_QUOTA_SHARE_CEDED
+                LRSCEDED:QUOTA_SHARE_PERCENT    =       L_QUOTA_SHARE_PERCENT
+                LRSCEDED:QUOTA_SHARE_LAE        =       L_QUOTA_SHARE_LAE
+                LRSCEDED:QUOTA_SHARE_CASE_RECOVERY =    L_QUOTA_SHARE_CASE_RECOVER
+                LRSCEDED:QUOTA_SHARE_LAE_RECOVERY  =    L_QUOTA_SHARE_LAE_RECOVER
+                LRSCEDED:QUOTA_SHARE_TREATY_NUMBER =    L_QUOTA_SHARE_TREATY_NUMBER
+                LRSCEDED:DIRECT_CASE_RECOVERY      =    L_DIRECT_CASE_RECOVER
+                LRSCEDED:DIRECT_LAE_RECOVERY       =    L_DIRECT_LAE_RECOVER
+                -- put this here to test then remove the duplicates
+                LRSCEDED:QUOTA_SHARE_LAE_RESERVE   =    L_QUOTA_SHARE_LAE_RESERVE
+                LRSCEDED:QUOTA_SHARE_LAE_RECOVERY  =    L_QUOTA_SHARE_LAE_RECOVERY
+                LRSCEDED:DIRECT_LIAB            =       0
+                LRSCEDED:DIRECT_LIAB_PERCENT    =       0
+                LRSCEDED:DIRECT_LIAB_LAE        =       0
+                LRSCEDED:PREMIUM_SURPLUS_RETENTION = L_PREM_SURPLUS_RETENTION
+                LRSCEDED:PREMIUM_SURPLUS_PERCENT   = L_PREM_SURPLUS_PERCENT
+                LRSCEDED:LOSSES_SURPLUS_RETENTION = L_LOSS_SURPLUS_RETENTION
+                For L_LIAB_CTR = 1 To 6
+                Begin
+                    LRSCEDED:LIAB[L_LIAB_CTR]              = 0
+                    LRSCEDED:LIAB_PERCENT[L_LIAB_CTR]      = 0
+                    LRSCEDED:LIAB_LAE_RESERVE[L_LIAB_CTR]  = 0
+                    LRSCEDED:LIAB_LAE_RECOVERY[L_LIAB_CTR] = 0
+                    LRSCEDED:LIAB_TREATY_NO[L_LIAB_CTR]    = 0
+                End
+                End
+            Else
+            If L_LINE_TYPE = "L" Then
+                Begin
+                Do CALCULATE_LIABILITY
+                LRSCEDED:DIRECT_LIAB            =       L_NET_LOSS_RESERVE + L_NET_LOSS_PAID
+                LRSCEDED:DIRECT_LIAB_LAE        =       L_NET_LAE_RESERVE  + L_NET_LAE_PAID
+                For L_LIAB_CTR = 1 To 6
+                Begin
+                    LRSCEDED:LIAB[L_LIAB_CTR]              = L_LIAB[L_LIAB_CTR]
+                    LRSCEDED:LIAB_CASE_RECOVERY[L_LIAB_CTR]= L_LIAB_PAID[L_LIAB_CTR]
+                    LRSCEDED:LIAB_PERCENT[L_LIAB_CTR]      = L_LIAB_PERCENT[L_LIAB_CTR]
+                    LRSCEDED:LIAB_LAE_RESERVE[L_LIAB_CTR]  = L_LIAB_LAE[L_LIAB_CTR]
+                    LRSCEDED:LIAB_LAE_RECOVERY[L_LIAB_CTR] = L_LIAB_LAE_PAID[L_LIAB_CTR]
+                    LRSCEDED:LIAB_TREATY_NO[L_LIAB_CTR]    = L_LIAB_REINS_CO[L_LIAB_CTR]
+                End
+                LRSCEDED:SURPLUS_PERCENT        =       0
+                LRSCEDED:SURPLUS_LAE            =       0
+                LRSCEDED:DIRECT                 =       0
+                LRSCEDED:DIRECT_PERCENT         =       0
+                LRSCEDED:DIRECT_LAE             =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[1]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[2]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[3]    =       0
+                LRSCEDED:PROPERTY_XS_PERCENT[4]    =       0
+                LRSCEDED:PROPERTY_XOL_LAE[1]       =       0
+                LRSCEDED:PROPERTY_XOL_LAE[2]       =       0
+/* new logic for subscripting the property layers
+   august 19, 2003 - dlp */
+                For L_PROP_SUB = 1 To 6
+                Begin
+                    LRSCEDED:PROPERTY_XOL[L_PROP_SUB]   =  0.00
+                    LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB] = 0.00
+                    LRSCEDED:XOL_CASE_RECOVERY[L_PROP_SUB] = 0.00
+                    LRSCEDED:PROPERTY_XOL_LAE[L_PROP_SUB]  = 0.00
+                    LRSCEDED:XOL_LAE_RECOVERY[L_PROP_SUB]  = 0.00
+                    LRSCEDED:PROPERTY_XS_PERCENT[L_PROP_SUB] = 0.00000
+                End
+                End
+            End
+
+End
+
+Procedure HOUSE_KEEPING
+Begin
+    L_DIRECT           = 0
+    L_DIRECT_PERCENT   = 0
+    L_PROP_XS_PERCENT[1]  = 0
+    L_PROP_XS_PERCENT[2]  = 0
+    L_PROP_XS_PERCENT[3]  = 0
+    L_PROP_XS_PERCENT[4]  = 0
+    L_PROPERTY_XOL_LAE = 0
+    L_PROPERTY_SURPLUS = 0
+    L_SURPLUS_PERCENT  = 0
+    L_SURPLUS_LAE      = 0
+    L_DIRECT_LAE       = 0
+    L_PROPERTY_XOL     = 0
+    L_TOTAL_CASE       = 0
+    L_TOTAL_LAE        = 0
+    L_REMAINING_LAE    = 0
+    L_TOTAL_LAE_RESERVE = 0
+    L_TOTAL_LAE_PAID    = 0
+    L_QUOTA_SHARE_LAE_RESERVE  = 0
+    L_QUOTA_SHARE_LAE_RECOVERY = 0
+    L_PROP_XOL_LAE_RESERVE     = 0
+    L_PROP_XOL_LAE_RECOVERY    = 0
+    L_SURPLUS_LAE_RESERVE      = 0
+    L_SURPLUS_LAE_RECOVERY     = 0
+
+    For L_LIAB_SUB = 1 To 10
+    Begin
+       L_LIAB[L_LIAB_SUB]         = 0
+       L_LIAB_PERCENT[L_LIAB_SUB] = 0
+       L_LIAB_LAE[L_LIAB_SUB]     = 0
+       L_LIAB_REINS_CO[L_LIAB_SUB] = 0
+          L_LIAB_PERCENT[L_LIAB_SUB]  = 0
+    End
+
+    L_DIRECT_LIAB          = 0
+    L_DIRECT_LIAB_PERCENT  = 0
+    L_DIRECT_LIAB_LAE      = 0
+    L_LIAB_TOTAL_INCURRED  = 0
+    L_LIAB_TOTAL_REMAINING = 0
+    L_PROP_TOTAL_REMAINING = 0
+    L_PROPERTY_RETENTION   = 0
+    L_LIABILITY_RETENTION  = 0
+    L_TOTAL_AMOUNT_SUBJECT = 0
+
+End -- end of house keeping
+
+Procedure GET_PRSRECONTROL
+Begin
+
+L_PROPERTY_EXCESS     = 0
+L_PROPERTY_RETENTION  = 0
+L_LIABILITY_RETENTION = 0
+
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = L_HOLD_COMPANY_ID,
+                     LRSSETUP:CLAIM_NO   = L_HOLD_CLAIM_NO, Exact
+
+Access PRSRECONTROL, Set PRSRECONTROL:COMPANY_ID = L_HOLD_COMPANY_ID, Approximate
+
+While PRSRECONTROL:COMPANY_ID = L_HOLD_COMPANY_ID
+Begin
+
+      If PRSRECONTROL:COMPANY_ID = L_HOLD_COMPANY_ID And
+         LRSSETUP:LOSS_DATE >= PRSRECONTROL:REFF_DATE And
+         LRSSETUP:LOSS_DATE <= PRSRECONTROL:REXP_DATE And
+         L_PROPERTY_RETENTION   = 0 And
+         L_LIABILITY_RETENTION  = 0 Then
+         Begin
+             L_PROPERTY_RETENTION  = PRSRECONTROL:PROPERTY_RETENTION
+             L_LIABILITY_RETENTION = PRSRECONTROL:LIABILITY_RETENTION
+--             L_SURPLUS_RETENTION   = PRSRECONTROL:SURPLUS_RETAINED
+             L_USE_DATE_OF_LOSS    = PRSRECONTROL:USE_DATE_OF_LOSS_FOR_LOSSES
+         End
+         Next PRSRECONTROL
+
+End
+
+End -- end of Property_retention procedure
+
+Procedure GET_QUOTA_SHARE_PROPERTY
+Begin
+
+L_QUOTA_SHARE_CEDED   = 0.00
+L_QUOTA_SHARE_SUBJECT = 0.00
+L_QUOTA_SHARE_LAE     = 0.00
+L_QUOTA_SHARE_PERCENT = 0.00
+L_QUOTA_SHARE_LIMIT   = 0
+L_MAXIMUM_QUOTA_SHARE = "N"
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID, Approximate
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID And
+      L_QUOTA_SHARE_CEDED  = 0.00
+Begin
+   If PRSTREATY:TREATY_TYPE          = "Q" And -- quota share
+      PRSTREATY:QUOTA_SHARE_PROPERTY = 1 And -- must be property
+      PRSTREATY:LINE_OF_BUSINESS     = LRSSETUP:LINE_OF_BUSINESS And
+      LRSSETUP:LOSS_DATE             >= PRSTREATY:EFF_DATE And
+      LRSSETUP:LOSS_DATE             <= PRSTREATY:EXP_DATE Then
+      Begin
+
+      If PRSTREATY:LAE_PART_OF_RETENTION = "1" Then
+      Begin
+          L_QUOTA_SHARE_SUBJECT = L_PROP_TOTAL_CASE_LAE
+      End
+      Else
+      Begin
+          L_QUOTA_SHARE_SUBJECT = L_PROP_TOTAL_REMAINING
+      End
+/* remove lrsceded:loss_paid from subject if there is a reserve */
+
+If LRSCEDED:LOSS_RESV <> 0.00 And
+   LRSCEDED:LOSS_PAID <> 0.00 Then
+   Begin
+      L_QUOTA_SHARE_SUBJECT = L_QUOTA_SHARE_SUBJECT - LRSCEDED:LOSS_PAID
+   End
+
+         L_QUOTA_SHARE_PERCENT       = PRSTREATY:QUOTA_SHARE_PERCENT
+         L_QUOTA_SHARE_LIMIT         = PRSTREATY:UPPER_LIMIT -- used for calc recoveries too
+         L_QUOTA_SHARE_TREATY_NUMBER = PRSTREATY:TREATY_NUMBER
+
+         If L_QUOTA_SHARE_SUBJECT > L_QUOTA_SHARE_LIMIT Then
+         Begin
+             L_QUOTA_SHARE_CEDED = L_QUOTA_SHARE_LIMIT *
+                                   PRSTREATY:QUOTA_SHARE_PERCENT
+             L_MAXIMUM_QUOTA_SHARE = "Y"
+         End
+         Else
+         Begin
+             L_QUOTA_SHARE_CEDED = L_QUOTA_SHARE_SUBJECT *
+                                   PRSTREATY:QUOTA_SHARE_PERCENT
+             L_MAXIMUM_QUOTA_SHARE = "N"
+         End
+     End
+     Next PRSTREATY
+End
+
+End -- end of procedure
+
+Procedure GET_QUOTA_SHARE_LIABILITY
+Begin
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID, Approximate
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID
+Begin
+   If PRSTREATY:TREATY_TYPE           = "Q" And -- quota share
+      PRSTREATY:QUOTA_SHARE_LIABILITY = 1 And -- must be property
+      PRSTREATY:LINE_OF_BUSINESS      = LRSSETUP:LINE_OF_BUSINESS And
+      LRSSETUP:LOSS_DATE             >= PRSTREATY:EFF_DATE And
+      LRSSETUP:LOSS_DATE             <= PRSTREATY:EXP_DATE Then
+      Begin
+         If LRSCEDED:TOTAL_AMOUNT_CEDED > PRSTREATY:UPPER_LIMIT Then
+         Begin
+             L_QUOTA_SHARE_CEDED = PRSTREATY:UPPER_LIMIT *
+                                   PRSTREATY:QUOTA_SHARE_PERCENT
+         End
+         Else
+         Begin
+             L_QUOTA_SHARE_CEDED = LRSCEDED:TOTAL_AMOUNT_CEDED *
+                                   PRSTREATY:QUOTA_SHARE_PERCENT
+         End
+     End
+     Next PRSTREATY
+End
+
+End -- end of procedure
+
+Procedure GET_TREATIES
+Begin
+/* this procedure will get the property XOL treaties only
+   changed on 10/01/2002 */
+
+L_PROPERTY_XOL               = 0
+L_PROPERTY_SURPLUS           = 0
+L_PROPERTY_XOL_TREATY_NUMBER = 0
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID
+Begin
+
+   If PRSTREATY:TREATY_TYPE = "P" And
+      LRSSETUP:LOSS_DATE         >= PRSTREATY:EFF_DATE And
+      LRSSETUP:LOSS_DATE         <= PRSTREATY:EXP_DATE And
+      PRSTREATY:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS Then
+      Begin
+
+          L_PROPERTY_XOL_TREATY_NUMBER = PRSTREATY:TREATY_NUMBER
+
+          If LRSCEDED:TOTAL_AMOUNT_CEDED > L_PROPERTY_RETENTION  Then
+          Begin
+                L_PROPERTY_XOL = LRSCEDED:TOTAL_AMOUNT_CEDED - L_PROPERTY_RETENTION
+          End
+          Else
+          Begin
+                L_PROPERTY_XOL = 0
+          End
+      End
+
+      Next PRSTREATY
+
+End
+
+End
+
+Procedure GET_SURPLUS_AMOUNT_SUBJECT
+Begin
+
+Access PRSSUBJECT, Set PRSSUBJECT:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                       PRSSUBJECT:POLICY_NO  = LRSSETUP:POLICY_NO,
+                       PRSSUBJECT:POL_YEAR   = LRSSETUP:POL_YEAR, Approximate
+
+While PRSSUBJECT:COMPANY_ID    = LRSSETUP:COMPANY_ID And
+      PRSSUBJECT:POLICY_NO     = LRSSETUP:POLICY_NO And
+      PRSSUBJECT:POL_YEAR      = LRSSETUP:POL_YEAR
+      Begin
+      If PRSSUBJECT:TOTAL_AMOUNT_SUBJECT <> 0.00 Then
+      Begin
+          /* added l_percent_to_surplus 08/12/2003 */
+          L_TOTAL_AMOUNT_SUBJECT = PRSSUBJECT:TOTAL_AMOUNT_SUBJECT
+          If PRSSUBJECT:PERCENT_TO_SURPLUS <> 0.00 Or
+             PRSSUBJECT:SURPLUS_TREATY_PERCENT <> 0.00 Then
+          Begin
+              L_PERCENT_TO_SURPLUS     = PRSSUBJECT:PERCENT_TO_SURPLUS
+              L_PREM_SURPLUS_PERCENT   = L_PERCENT_TO_SURPLUS
+              L_PREM_SURPLUS_RETENTION = PRSSUBJECT:SURPLUS_RETAINED
+          End
+      End
+      Next PRSSUBJECT
+      End
+
+End
+
+Procedure GET_SURPLUS_TREATY
+Begin
+
+L_SURPLUS_TREATY_NUMBER        = 0
+
+L_SURPLUS_RETENTION            = 0
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID And
+      (L_SURPLUS_TREATY_NUMBER = 0 And  -- only allow one hit for surplus treaty
+       L_SURPLUS_RETENTION     = 0)     -- if more than 1 then there is a table setup error
+Begin
+   If PRSTREATY:TREATY_TYPE       = "S" And
+      LRSSETUP:LOSS_DATE          >= PRSTREATY:EFF_DATE And
+      LRSSETUP:LOSS_DATE          <= PRSTREATY:EXP_DATE And
+      PRSTREATY:LINE_OF_BUSINESS  = LRSSETUP:LINE_OF_BUSINESS Then
+      Begin
+          L_SURPLUS_TREATY_NUMBER = PRSTREATY:TREATY_NUMBER
+          L_SURPLUS_RETENTION     = PRSTREATY:UPPER_LIMIT
+      End
+      Next PRSTREATY
+
+End
+
+If L_USE_DATE_OF_LOSS One Of 1 Then
+Begin
+L_PERCENT_TO_SURPLUS = ((L_TOTAL_AMOUNT_SUBJECT - L_SURPLUS_RETENTION)
+                       Divide L_TOTAL_AMOUNT_SUBJECT)
+L_LOSS_SURPLUS_RETENTION = L_SURPLUS_RETENTION
+End
+
+End
+
+Procedure CALCULATE_PROPERTY
+Begin
+
+    L_TOTAL_AMOUNT_SUBJECT = 0.00
+
+    L_PROP_TOTAL_CASE_LAE  = LRSCEDED:TOTAL_AMOUNT_CEDED
+    L_TOTAL_LAE            = LRSCEDED:TOTAL_LAE
+    L_PROP_TOTAL_REMAINING = LRSCEDED:TOTAL_CASE
+    L_REMAINING_LAE        = LRSCEDED:TOTAL_LAE
+-- added loss paid to the propr_total_remaining
+    L_PROP_TOTAL_REMAINING = LRSCEDED:TOTAL_CASE
+    L_TOTAL_AMOUNT_SUBJECT = PRSSUBJECT:TOTAL_AMOUNT_SUBJECT
+    L_TOTAL_LAE_RESERVE    = LRSCEDED:ULAE_RESV + LRSCEDED:ALAE_RESV
+    L_TOTAL_LAE_PAID       = LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID
+
+    -- new logic as of 10/01/2002
+    -- get the surplus upper limit to set the surplus retention
+
+    -- need to access just the header portion of the sfsline file since
+    -- this is the only record that contains the lob_code
+
+    L_LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS
+    L_LOB_SUBLINE      = LRSSETUP:LOB_SUBLINE
+--    L_LOB_SUBLINE = "00"
+
+    Access SFSLINE, Set SFSLINE:COMPANY_ID       = LRSCEDED:COMPANY_ID,
+                        SFSLINE:LINE_OF_BUSINESS = L_LINE_OF_BUSINESS,
+                        SFSLINE:LOB_SUBLINE      = L_LOB_SUBLINE
+
+If SFSLINE:LOB_CODE One Of "AUTO","ALLIED", "HOME","DWELLING","MOBILE","BOP","SMP" Or
+   SFSLINE:SUBJECT_TO_SURPLUS One Of 1 Then
+Begin
+    Do GET_SURPLUS_AMOUNT_SUBJECT
+End
+
+Do GET_SURPLUS_TREATY
+
+--    Do GET_TREATIES
+
+/* initalize variables */
+L_PROP_LOSS_RESERVE_REMAINING  = LRSCEDED:LOSS_RESV
+L_PROP_LOSS_PAID_REMAINING     = LRSCEDED:LOSS_PAID
+L_PROP_LAE_RESERVE_REMAINING   = LRSCEDED:ULAE_RESV + LRSCEDED:ALAE_RESV
+L_PROP_LAE_PAID_REMAINING      = LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID
+
+L_PROP_SURPLUS_LOSS_RESERVE    = 0.00
+L_PROP_SURPLUS_LOSS_PAID       = 0.00
+L_PROP_SURPLUS_LAE_RESERVE     = 0.00
+L_PROP_SURPLUS_LAE_PAID        = 0.00
+
+    If L_TOTAL_AMOUNT_SUBJECT > L_SURPLUS_RETENTION And
+       L_SURPLUS_RETENTION  <> 0 Then
+    Begin
+       L_SURPLUS_PERCENT = L_PERCENT_TO_SURPLUS
+       If L_PROP_LOSS_RESERVE_REMAINING <> 0 Then
+       Begin
+           L_PROP_SURPLUS_LOSS_RESERVE = L_PROP_LOSS_RESERVE_REMAINING * L_SURPLUS_PERCENT
+           L_PROP_LOSS_RESERVE_REMAINING = L_PROP_LOSS_RESERVE_REMAINING -
+                                           L_PROP_SURPLUS_LOSS_RESERVE
+       End
+       If L_PROP_LOSS_PAID_REMAINING <> 0 Then
+       Begin
+           L_PROP_SURPLUS_LOSS_PAID = L_PROP_LOSS_PAID_REMAINING * L_SURPLUS_PERCENT
+           L_PROP_LOSS_PAID_REMAINING = L_PROP_LOSS_PAID_REMAINING -
+                                           L_PROP_SURPLUS_LOSS_PAID
+       End
+
+       If L_PROP_LAE_RESERVE_REMAINING <> 0 Then
+       Begin
+           L_PROP_SURPLUS_LAE_RESERVE   = L_PROP_LAE_RESERVE_REMAINING * L_SURPLUS_PERCENT
+           L_PROP_LAE_RESERVE_REMAINING = L_PROP_LAE_RESERVE_REMAINING -
+                                          L_PROP_SURPLUS_LAE_RESERVE
+       End
+
+       If L_PROP_LAE_PAID_REMAINING <> 0 Then
+       Begin
+           L_PROP_SURPLUS_LAE_PAID   = L_PROP_LAE_PAID_REMAINING * L_SURPLUS_PERCENT
+           L_PROP_LAE_PAID_REMAINING = L_PROP_LAE_PAID_REMAINING -
+                                       L_PROP_SURPLUS_LAE_PAID
+       End
+
+    End
+
+L_PROP_REMAINING_RETENTION = L_PROPERTY_RETENTION
+L_PROP_NET_SURPLUS_LAE_RESERVE     = L_PROP_LAE_RESERVE_REMAINING
+
+If L_PROP_REMAINING_RETENTION > 0 Then
+Begin
+    If L_PROP_LOSS_PAID_REMAINING > L_PROP_REMAINING_RETENTION Then
+    Begin
+        L_PROP_NET_LOSS_PAID       = L_PROP_REMAINING_RETENTION
+        L_PROP_REMAINING_RETENTION = 0
+        L_PROP_LOSS_PAID_REMAINING = L_PROP_LOSS_PAID_REMAINING - L_PROP_NET_LOSS_PAID
+    End
+    Else
+    Begin
+        L_PROP_NET_LOSS_PAID       = L_PROP_LOSS_PAID_REMAINING
+        L_PROP_LOSS_PAID_REMAINING = 0
+        L_PROP_REMAINING_RETENTION = L_PROP_REMAINING_RETENTION - L_PROP_NET_LOSS_PAID
+    End
+End -- loss paid
+
+/* pass 1 - Loss Reserves */
+If L_PROP_LOSS_RESERVE_REMAINING > L_PROP_REMAINING_RETENTION Then
+Begin
+    L_PROP_NET_LOSS_RESERVE       = L_PROP_REMAINING_RETENTION
+    L_PROP_REMAINING_RETENTION    = 0
+    L_PROP_LOSS_RESERVE_REMAINING = L_PROP_LOSS_RESERVE_REMAINING - L_PROP_NET_LOSS_RESERVE
+End
+Else
+Begin
+--    L_PROP_NET_LOSS_RESERVE       = L_PROP_LOSS_RESERVE_REMAINING
+    L_PROP_NET_LOSS_RESERVE       = L_PROP_REMAINING_RETENTION
+    L_PROP_LOSS_RESERVE_REMAINING = 0
+    L_PROP_REMAINING_RETENTION    = L_PROP_REMAINING_RETENTION - L_PROP_NET_LOSS_RESERVE
+End
+
+/* pass 3 - LAE Resv */
+If L_PROP_REMAINING_RETENTION > 0 Then
+Begin
+    If L_PROP_LAE_RESERVE_REMAINING  > L_PROP_REMAINING_RETENTION Then
+    Begin
+        L_PROP_NET_LAE_RESERVE     = L_PROP_REMAINING_RETENTION
+        L_PROP_REMAINING_RETENTION = 0
+        L_PROP_LAE_RESERVE_REMAINING = L_PROP_LAE_RESERVE_REMAINING - L_PROP_NET_LAE_RESERVE
+    End
+    Else
+    Begin
+        L_PROP_NET_LAE_RESERVE       = L_PROP_LAE_RESERVE_REMAINING
+        L_PROP_LAE_RESERVE_REMAINING = 0
+        L_PROP_REMAINING_RETENTION = L_PROP_REMAINING_RETENTION - L_PROP_NET_LAE_RESERVE
+    End
+End -- LAE Resv
+
+/* pass 4 - LAE Paid */
+If L_PROP_REMAINING_RETENTION > 0 Then
+Begin
+    If L_PROP_LAE_PAID_REMAINING  > L_PROP_REMAINING_RETENTION Then
+    Begin
+        L_PROP_NET_LAE_PAID          = L_PROP_REMAINING_RETENTION
+        L_PROP_REMAINING_RETENTION   = 0
+        L_PROP_LAE_PAID_REMAINING    = L_PROP_LAE_PAID_REMAINING - L_PROP_NET_LAE_PAID
+    End
+    Else
+    Begin
+        L_PROP_NET_LAE_PAID          = L_PROP_LAE_PAID_REMAINING
+        L_PROP_LAE_PAID_REMAINING    = 0
+        L_PROP_REMAINING_RETENTION   = L_PROP_REMAINING_RETENTION - L_PROP_NET_LAE_PAID
+    End
+End -- LAE Paid
+
+L_PROP_TOTAL_REMAINING = L_PROP_LOSS_RESERVE_REMAINING + L_PROP_LOSS_PAID_REMAINING
+
+For L_PROP_SUB = 1 To 10
+Begin
+    L_PROP[L_PROP_SUB]          = 0.00
+    L_PROP_PERCENT[L_PROP_SUB]  = 0.00
+    L_PROP_LAE[L_PROP_SUB]      = 0.00
+    L_PROP_REINS_CO[L_PROP_SUB] = 0.00
+End
+
+L_PROP_SUB = 0
+
+If L_PROP_TOTAL_REMAINING <> 0 Then
+Begin
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID And
+      L_PROP_TOTAL_REMAINING <> 0
+Begin
+     If PRSTREATY:TREATY_TYPE = L_LINE_TYPE And -- should be P
+        PRSTREATY:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS Then
+     Begin
+         If LRSSETUP:LOSS_DATE >= PRSTREATY:EFF_DATE And
+            LRSSETUP:LOSS_DATE <= PRSTREATY:EXP_DATE Then
+         Begin
+            L_PROP_SUB = L_PROP_SUB + 1
+            L_TREATY_LIMIT = PRSTREATY:UPPER_LIMIT - PRSTREATY:LOWER_LIMIT
+            L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT
+            L_PROP_REINS_CO[L_PROP_SUB] = PRSTREATY:TREATY_NUMBER
+
+/* loss paid */
+
+            If L_PROP_LOSS_PAID_REMAINING > L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_PROP_PAID[L_PROP_SUB]  = L_TREATY_LIMIT_REMAINING
+                L_TREATY_LIMIT_REMAINING = 0
+                L_PROP_LOSS_PAID_REMAINING    = L_PROP_LOSS_PAID_REMAINING -
+                                                L_PROP_PAID[L_PROP_SUB]
+            End
+            Else
+            If L_PROP_LOSS_PAID_REMAINING <= L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_PROP_PAID[L_PROP_SUB]  = L_PROP_LOSS_PAID_REMAINING
+                L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT_REMAINING -
+                                           L_PROP_PAID[L_PROP_SUB]
+                L_PROP_LOSS_PAID_REMAINING = 0
+            End
+
+            /* loss reserve */
+If L_TREATY_LIMIT_REMAINING <> 0.00 Then
+Begin
+
+            If L_PROP_LOSS_RESERVE_REMAINING > L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_PROP[L_PROP_SUB]       = L_TREATY_LIMIT_REMAINING
+                L_TREATY_LIMIT_REMAINING = 0
+                L_PROP_LOSS_RESERVE_REMAINING = L_PROP_LOSS_RESERVE_REMAINING -
+                                                L_PROP[L_PROP_SUB]
+            End
+            Else
+            If L_PROP_LOSS_RESERVE_REMAINING <= L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_PROP[L_PROP_SUB]      = L_PROP_LOSS_RESERVE_REMAINING
+                L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT_REMAINING -
+                                           L_PROP[L_PROP_SUB]
+                L_PROP_LOSS_RESERVE_REMAINING = 0
+           End
+End -- end of checking for l_treaty_limit_remaining <> 0.00
+
+L_PROP_NET_SURPLUS_RESERVE = LRSCEDED:LOSS_RESV + LRSCEDED:LOSS_PAID
+
+If L_PROP[L_PROP_SUB] + L_PROP_PAID[L_PROP_SUB] <> 0.00 Then
+Begin
+
+L_PROP_LAE_PERCENT         = (L_PROP_PAID[L_PROP_SUB] Divide LRSCEDED:LOSS_PAID)
+L_PROP_LAE_RESERVE_PERCENT = L_PROP[L_PROP_SUB]
+                             Divide L_PROP_NET_SURPLUS_RESERVE
+
+    L_PROP_XS_PERCENT[L_PROP_SUB] = L_PROP_LAE_PERCENT
+    L_PROP_LAE_RESERVE_REMAINING  = L_PROP_LAE_RESERVE_REMAINING -
+                                    L_PROP_LAE[L_PROP_SUB]
+    If L_PROP_NET_LOSS_PAID >= L_PROPERTY_RETENTION Then
+    Begin
+        L_PROP_LAE_PAID[L_PROP_SUB]   = (LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID) *
+                                        L_PROP_LAE_PERCENT
+        L_PROP_LAE_PAID_REMAINING     = L_PROP_LAE_PAID_REMAINING -
+                                        L_PROP_LAE_PAID[L_PROP_SUB]
+    End
+    Else
+    Begin
+        L_PROP_LAE_PAID[L_PROP_SUB]   = 0.00
+    End
+
+/* need to subtract any LAE paid from total prior to calculating the reserve
+   11/04/2003
+*/
+    L_PROP_LAE[L_PROP_SUB] = ((L_TOTAL_LAE_RESERVE + L_TOTAL_LAE_PAID) -
+                               L_PROP_LAE_PAID[L_PROP_SUB]) * L_PROP_LAE_RESERVE_PERCENT
+
+End
+
+End -- end of date verification
+
+End -- end of match on line and line type
+
+          Next PRSTREATY
+
+End -- end of while loop
+
+End -- end of first check on l_liab_total_incurred_remaining
+
+L_PROP_SUB = 0
+
+    L_QUOTA_SHARE_LAE_RESERVE = L_TOTAL_LAE_RESERVE * L_QUOTA_SHARE_PERCENT
+    L_TOTAL_LAE_RESERVE       = L_TOTAL_LAE_RESERVE - L_QUOTA_SHARE_LAE_RESERVE
+    L_QUOTA_SHARE_LAE_RECOVERY = L_TOTAL_LAE_PAID   * L_QUOTA_SHARE_PERCENT
+    L_TOTAL_LAE_PAID           = L_TOTAL_LAE_PAID   - L_QUOTA_SHARE_LAE_RECOVERY
+
+    L_DIRECT_LAE = L_TOTAL_LAE_PAID
+
+    L_REMAINING_LAE = L_REMAINING_LAE - (L_DIRECT_LAE + L_PROPERTY_XOL_LAE +
+                                         L_SURPLUS_LAE + L_QUOTA_SHARE_LAE)
+
+/*  apply the rounding problem to surplus, then xol then direct */
+/* If L_REMAINING_LAE <> 0 Then -- rounding problem found
+    {
+       If L_SURPLUS_LAE <> 0 Then
+       {
+          L_SURPLUS_LAE = L_SURPLUS_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+       Else If L_PROPERTY_XOL_LAE <> 0 Then
+       {
+          L_PROPERTY_XOL_LAE = L_PROPERTY_XOL_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+       Else
+       {
+          L_DIRECT_LAE = L_DIRECT_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+    }
+
+*/
+
+/* calculate Recoveries */
+L_QUOTA_SHARE_CASE_RECOVER = 0.00
+L_SURPLUS_CASE_RECOVER     = 0.00
+L_DIRECT_CASE_RECOVER      = 0.00
+L_XOL_CASE_RECOVER         = 0.00
+L_QUOTA_SHARE_LAE_RECOVER  = 0.00
+L_SURPLUS_LAE_RECOVER      = 0.00
+L_DIRECT_LAE_RECOVER       = 0.00
+L_XOL_LAE_RECOVER          = 0.00
+L_TOTAL_PAID_REMAINING     = 0.00
+L_TOTAL_PAID_LAE           = 0.00
+
+L_TOTAL_PAID_REMAINING = LRSCEDED:LOSS_PAID
+
+
+If L_QUOTA_SHARE_PERCENT <> 0.00 Then
+Begin
+    L_QUOTA_SHARE_CASE_RECOVER = LRSCEDED:LOSS_PAID * L_QUOTA_SHARE_PERCENT
+/* can not recover more than the treaty limit allows */
+    If L_QUOTA_SHARE_CASE_RECOVER > L_QUOTA_SHARE_CEDED Then
+    Begin
+        L_QUOTA_SHARE_CASE_RECOVER = L_QUOTA_SHARE_CEDED
+    End
+    L_TOTAL_PAID_REMAINING     = L_TOTAL_PAID_REMAINING - L_QUOTA_SHARE_CASE_RECOVER
+End
+
+If L_SURPLUS_PERCENT <> 0.00 Then
+Begin
+    L_SURPLUS_CASE_RECOVER = LRSCEDED:LOSS_PAID * L_SURPLUS_PERCENT
+-- comment this out temporarily
+    L_TOTAL_PAID_REMAINING = L_TOTAL_PAID_REMAINING - L_SURPLUS_CASE_RECOVER
+End
+
+If L_TOTAL_PAID_REMAINING <= L_PROPERTY_RETENTION Then
+Begin
+    L_DIRECT_CASE_RECOVER  = L_TOTAL_PAID_REMAINING
+    L_TOTAL_PAID_REMAINING = 0.00
+    L_XOL_CASE_RECOVER     = 0.00
+End
+Else
+If L_TOTAL_PAID_REMAINING > L_PROPERTY_RETENTION Then
+Begin
+    L_XOL_CASE_RECOVER     = (L_TOTAL_PAID_REMAINING - L_PROPERTY_RETENTION) + L_QUOTA_SHARE_CEDED
+    L_DIRECT_CASE_RECOVER  = L_TOTAL_PAID_REMAINING - L_XOL_CASE_RECOVER
+    L_TOTAL_PAID_REMAINING = 0.00
+End
+
+/*  end of property case calculations */
+
+L_TOTAL_PAID_REMAINING = LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID
+L_TOTAL_PAID_LAE       = L_TOTAL_PAID_REMAINING
+
+If L_QUOTA_SHARE_PERCENT <> 0.00 Then
+Begin
+    L_QUOTA_SHARE_LAE_RECOVER = L_TOTAL_PAID_LAE * L_QUOTA_SHARE_PERCENT
+    L_TOTAL_PAID_LAE          = L_TOTAL_PAID_LAE - L_QUOTA_SHARE_LAE_RECOVER
+End
+
+If L_SURPLUS_PERCENT <> 0.00 Then
+Begin
+    L_SURPLUS_LAE_RECOVER  = L_TOTAL_PAID_LAE * L_SURPLUS_PERCENT
+    L_TOTAL_PAID_LAE       = L_TOTAL_PAID_LAE - L_SURPLUS_LAE_RECOVER
+End
+
+L_DIRECT_LAE_RECOVER       = L_TOTAL_PAID_LAE * L_DIRECT_PERCENT
+L_TOTAL_PAID_LAE           = L_TOTAL_PAID_LAE - L_DIRECT_LAE_RECOVER
+
+If L_TOTAL_PAID_REMAINING <> 0.00 Then
+Begin
+   L_XOL_LAE_RECOVER       = L_TOTAL_PAID_LAE
+   L_TOTAL_PAID_REMAINING  = 0.00
+End
+
+/* end of property lae recovery */
+
+End -- end of calculate property
+
+Procedure CALCULATE_LIABILITY
+Begin
+
+    /* house cleaning */
+    L_DIRECT_LIAB  = 0
+
+    L_TOTAL_CASE = LRSCEDED:TOTAL_CASE
+    L_TOTAL_LAE  = LRSCEDED:TOTAL_LAE
+
+    L_LIAB_TOTAL_INCURRED           = L_TOTAL_CASE + L_TOTAL_LAE
+    L_LIAB_TOTAL_INCURRED_REMAINING = L_LIAB_TOTAL_INCURRED
+
+    L_LIAB_TOTAL_REMAINING = L_TOTAL_CASE + L_TOTAL_LAE
+    L_REMAINING_LAE        = L_TOTAL_LAE
+
+    For L_LIAB_SUB = 1 To 10
+    Begin
+        L_LIAB[L_LIAB_SUB]         = 0.00
+        L_LIAB_PAID[L_LIAB_SUB]    = 0.00
+        L_LIAB_PERCENT[L_LIAB_SUB] = 0.00
+        L_LIAB_LAE[L_LIAB_SUB]     = 0.00
+        L_LIAB_LAE_PAID[L_LIAB_SUB]= 0.00
+        L_LIAB_REINS_CO[L_LIAB_SUB]= 0.00
+    End
+
+    L_LIAB_SUB = 0
+
+/* new variable initialization - February 9, 2003 */
+L_REMAINING_RETENTION    = L_LIABILITY_RETENTION
+L_LOSS_RESERVE_REMAINING = LRSCEDED:LOSS_RESV
+L_LOSS_PAID_REMAINING    = LRSCEDED:LOSS_PAID
+L_LAE_RESERVE_REMAINING  = LRSCEDED:ULAE_RESV + LRSCEDED:ALAE_RESV
+L_LAE_PAID_REMAINING     = LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID
+L_NET_LOSS_RESERVE       = 0
+L_NET_LOSS_PAID          = 0
+L_NET_LAE_RESERVE        = 0
+L_NET_LAE_PAID           = 0
+L_TREATY_LIMIT_REMAINING = 0
+
+    /* end of house cleaning */
+
+/* new logic - 2/09/2003 -- dlp */
+
+/* pass 1 - Loss Paid */
+If L_REMAINING_RETENTION > 0 Then
+Begin
+    If L_LOSS_PAID_REMAINING > L_REMAINING_RETENTION Then
+    Begin
+        L_NET_LOSS_PAID       = L_REMAINING_RETENTION
+        L_REMAINING_RETENTION = 0
+        L_LOSS_PAID_REMAINING = L_LOSS_PAID_REMAINING - L_NET_LOSS_PAID
+    End
+    Else
+    Begin
+        L_NET_LOSS_PAID       = L_LOSS_PAID_REMAINING
+        L_LOSS_PAID_REMAINING = 0
+        L_REMAINING_RETENTION = L_REMAINING_RETENTION - L_NET_LOSS_PAID
+    End
+End -- loss paid
+
+/* Write ("<014>")
+Write ("%c%s%n",01001,"l remaining retention   = ",L_REMAINING_RETENTION)
+Write ("%c%s%n",03001,"l lae paid remaining    = ",L_LAE_PAID_REMAINING)
+Write ("%c%s%d",05001,"ending date             = ",L_ENDING_DATE)
+Read (23,1,"Press Enter to Continue ",L_ENTER,1)
+*/
+
+/* pass 3 - LAE Paid */
+If L_REMAINING_RETENTION > 0 Then
+Begin
+    If L_LAE_PAID_REMAINING  > L_REMAINING_RETENTION Then
+    Begin
+        L_NET_LAE_PAID          = L_REMAINING_RETENTION
+        L_REMAINING_RETENTION   = 0
+        L_LAE_PAID_REMAINING    = L_LAE_PAID_REMAINING - L_NET_LAE_PAID
+    End
+    Else
+    Begin
+        L_NET_LAE_PAID          = L_LAE_PAID_REMAINING
+        L_LAE_PAID_REMAINING    = 0
+        L_REMAINING_RETENTION   = L_REMAINING_RETENTION - L_NET_LAE_PAID
+    End
+End -- LAE Paid
+
+/* pass 2 - LAE Resv */
+If L_REMAINING_RETENTION > 0 Then
+Begin
+    If L_LAE_RESERVE_REMAINING  > L_REMAINING_RETENTION Then
+    Begin
+        L_NET_LAE_RESERVE     = L_REMAINING_RETENTION
+        L_REMAINING_RETENTION = 0
+        L_LAE_RESERVE_REMAINING = L_LAE_RESERVE_REMAINING - L_NET_LAE_RESERVE
+    End
+    Else
+    Begin
+        L_NET_LAE_RESERVE       = L_LAE_RESERVE_REMAINING
+        L_LAE_RESERVE_REMAINING = 0
+        L_REMAINING_RETENTION = L_REMAINING_RETENTION - L_NET_LAE_RESERVE
+    End
+End -- LAE Resv
+
+/* pass 4 - Loss Reserves */
+If L_LOSS_RESERVE_REMAINING > L_REMAINING_RETENTION Then
+Begin
+    L_NET_LOSS_RESERVE       = L_REMAINING_RETENTION
+    L_REMAINING_RETENTION    = 0
+    L_LOSS_RESERVE_REMAINING = L_LOSS_RESERVE_REMAINING - L_NET_LOSS_RESERVE
+End
+Else
+Begin
+    L_NET_LOSS_RESERVE       = L_LOSS_RESERVE_REMAINING
+    L_LOSS_RESERVE_REMAINING = 0
+    L_REMAINING_RETENTION    = L_REMAINING_RETENTION - L_NET_LOSS_RESERVE
+End
+
+L_LIAB_TOTAL_REMAINING = L_LOSS_RESERVE_REMAINING + L_LOSS_PAID_REMAINING
+L_REMAINING_LAE        = L_LAE_RESERVE_REMAINING  + L_LAE_PAID_REMAINING
+-- L_LIAB_PAID_OVER_RETENTION = LRSCEDED:LOSS_PAID - L_LIABILITY_RETENTION
+
+/* begin treaty placement */
+L_LIAB_TOTAL_INCURRED_REMAINING = L_LIAB_TOTAL_REMAINING + L_REMAINING_LAE
+
+If L_LIAB_TOTAL_INCURRED_REMAINING <> 0 Then
+Begin
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = L_HOLD_COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID And
+      L_LIAB_TOTAL_INCURRED_REMAINING <> 0
+Begin
+
+     If PRSTREATY:TREATY_TYPE      = L_LINE_TYPE And -- should be L
+        PRSTREATY:LINE_OF_BUSINESS = L_HOLD_LINE_OF_BUSINESS Then
+     Begin
+         If LRSSETUP:LOSS_DATE >= PRSTREATY:EFF_DATE And
+            LRSSETUP:LOSS_DATE <= PRSTREATY:EXP_DATE Then
+         Begin
+            L_LIAB_SUB = L_LIAB_SUB + 1
+            L_TREATY_LIMIT = PRSTREATY:UPPER_LIMIT - PRSTREATY:LOWER_LIMIT
+            L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT
+            L_LIAB_REINS_CO[L_LIAB_SUB] = PRSTREATY:TREATY_NUMBER
+
+            /* loss reserve */
+            If L_LOSS_RESERVE_REMAINING > L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_LIAB[L_LIAB_SUB]       = L_TREATY_LIMIT_REMAINING
+                L_TREATY_LIMIT_REMAINING = 0
+                L_LOSS_RESERVE_REMAINING = L_LOSS_RESERVE_REMAINING -
+                                           L_LIAB[L_LIAB_SUB]
+            End
+            Else
+            Begin
+            If L_LOSS_RESERVE_REMAINING <= L_TREATY_LIMIT_REMAINING And
+               L_LOSS_RESERVE_REMAINING <> 0 Then
+            Begin
+
+                L_LIAB[L_LIAB_SUB]      = L_LOSS_RESERVE_REMAINING
+                L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT_REMAINING -
+                                           L_LIAB[L_LIAB_SUB]
+                L_LOSS_RESERVE_REMAINING = 0
+            End
+            End
+
+/* loss paid */
+            If L_LOSS_PAID_REMAINING > L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_LIAB_PAID[L_LIAB_SUB]  = L_TREATY_LIMIT_REMAINING
+                L_TREATY_LIMIT_REMAINING = 0
+                L_LOSS_PAID_REMAINING    = L_LOSS_PAID_REMAINING -
+                                           L_LIAB_PAID[L_LIAB_SUB]
+            End
+            Else
+            If L_LOSS_PAID_REMAINING <= L_TREATY_LIMIT_REMAINING And
+               L_LOSS_PAID_REMAINING <> 0 Then
+            Begin
+                L_LIAB_PAID[L_LIAB_SUB]  = L_LOSS_PAID_REMAINING
+                L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT_REMAINING -
+                                           L_LIAB_PAID[L_LIAB_SUB]
+                L_LOSS_PAID_REMAINING = 0
+            End
+
+/* lae paid */
+
+/* Write ("<014>")
+Write ("%c%s%n",01001,"l treaty limit remaining   = ",L_TREATY_LIMIT_REMAINING)
+Write ("%c%s%n",03001,"l lae paid remaining       = ",L_LAE_PAID_REMAINING)
+Write ("%c%s%d",05001,"Year                       = ",L_ENDING_DATE)
+Read (23,1,"Press Enter to Continue ",L_ENTER,1)
+*/
+
+If L_TREATY_LIMIT_REMAINING > 0 Then
+   If L_LAE_PAID_REMAINING > L_TREATY_LIMIT_REMAINING Then
+   Begin
+       L_LIAB_LAE_PAID[L_LIAB_SUB] = L_TREATY_LIMIT_REMAINING
+       L_TREATY_LIMIT_REMAINING    = 0
+       L_LAE_PAID_REMAINING = L_LAE_PAID_REMAINING - L_LIAB_LAE_PAID[L_LIAB_SUB]
+   End
+   Else
+   Begin
+       L_LIAB_LAE_PAID[L_LIAB_SUB] = L_LAE_PAID_REMAINING
+       L_LAE_PAID_REMAINING        = 0
+       L_TREATY_LIMIT_REMAINING    = L_TREATY_LIMIT_REMAINING - L_LIAB_LAE_PAID[L_LIAB_SUB]
+   End
+
+/*            If L_LIAB_PAID_OVER_RETENTION > 0 Then
+            Begin
+                If L_LIAB_PAID_OVER_RETENTION > L_TREATY_LIMIT Then
+            Begin
+                L_LIAB_LAE_PAID[L_LIAB_SUB]    = (LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID) *
+                                                 (L_TREATY_LIMIT Divide L_TOTAL_CASE)
+                L_LIAB_PAID_OVER_RETENTION     = L_LIAB_PAID_OVER_RETENTION -
+                                                 L_LIAB_LAE_PAID[L_LIAB_SUB]
+            End
+            Else
+            If L_LIAB_PAID_OVER_RETENTION <= L_TREATY_LIMIT And
+               L_LIAB_PAID_OVER_RETENTION <> 0 Then
+            Begin
+                L_TREATY_LIMIT_REMAINING     = 0
+                L_LIAB_LAE_PAID[L_LIAB_SUB]  = (LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_PAID) *
+
+                                               (L_LIAB_PAID_OVER_RETENTION Divide L_TOTAL_CASE)
+            End
+
+            End
+
+*/
+
+/* Lae Calculations */
+            /* lae reserve */
+            If L_LAE_RESERVE_REMAINING > L_TREATY_LIMIT_REMAINING Then
+            Begin
+                L_LIAB_LAE[L_LIAB_SUB]   = L_TREATY_LIMIT_REMAINING
+                L_TREATY_LIMIT_REMAINING = 0
+                L_LAE_RESERVE_REMAINING  = L_LAE_RESERVE_REMAINING -
+                                           L_LIAB_LAE[L_LIAB_SUB]
+            End
+            Else
+            If L_LAE_RESERVE_REMAINING <= L_TREATY_LIMIT_REMAINING And
+               L_LAE_RESERVE_REMAINING <> 0 Then
+            Begin
+                L_LIAB_LAE[L_LIAB_SUB]   = L_LAE_RESERVE_REMAINING
+                L_TREATY_LIMIT_REMAINING = L_TREATY_LIMIT_REMAINING -
+                                           L_LIAB_LAE[L_LIAB_SUB]
+                L_LAE_RESERVE_REMAINING = 0
+            End
+
+
+End -- end of date verification
+
+End -- end of match on line and line type
+
+          Next PRSTREATY
+
+End -- end of while loop
+
+End -- end of first check on l_liab_total_incurred_remaining
+
+/* cleanup the erroneous treaty number entered - this occurs because the
+   treaty number is assigned before any values are entered */
+For L_LIAB_SUB = 1 To 10
+Begin
+   If L_LIAB[L_LIAB_SUB]          = 0 And
+      L_LIAB_PAID[L_LIAB_SUB]     = 0 And
+      L_LIAB_LAE[L_LIAB_SUB]      = 0 And
+      L_LIAB_LAE_PAID[L_LIAB_SUB] = 0 Then
+      Begin
+          L_LIAB_REINS_CO[L_LIAB_SUB] = 0
+      End
+End
+
+End  -- end of calculate liability
+
+/*  processing reinsurance */
+
+Procedure CREATE_REINSURANCE_TRANSACTIONS
+Begin
+
+L_HIT = 0
+Write ("%c%s",014020,"Create Reinsurance Transactions ")
+
+Access LRSCEDEDWRK, Set LRSCEDEDWRK:COMPANY_ID = L_HOLD_COMPANY_ID,
+                        LRSCEDEDWRK:CLAIM_NO   = L_HOLD_CLAIM_NO, Generic
+
+While LRSCEDEDWRK:COMPANY_ID = L_HOLD_COMPANY_ID And
+      LRSCEDEDWRK:CLAIM_NO   = L_HOLD_CLAIM_NO
+      Begin
+
+      /* start comparison of old records (lrscededwrk)
+      to the new updated records (lrsceded) */
+
+Access LRSCEDED_ALT, Set LRSCEDED_ALT:COMPANY_ID = LRSCEDEDWRK:COMPANY_ID,
+                         LRSCEDED_ALT:CLAIM_NO   = LRSCEDEDWRK:CLAIM_NO,
+                         LRSCEDED_ALT:LINE_TYPE  = LRSCEDEDWRK:LINE_TYPE
+
+If LRSCEDED_ALT:COMPANY_ID = LRSCEDEDWRK:COMPANY_ID And
+   LRSCEDED_ALT:CLAIM_NO   = LRSCEDEDWRK:CLAIM_NO And
+   LRSCEDED_ALT:LINE_TYPE  = LRSCEDEDWRK:LINE_TYPE Then
+   Begin
+
+   If LRSCEDEDWRK:LINE_TYPE = "P" Then -- property
+   Begin
+      Do PROCESS_PROPERTY_REINSURANCE
+   End
+   Else
+   Begin
+      Do PROCESS_LIABILITY_REINSURANCE
+   End
+   End
+Next LRSCEDEDWRK
+
+End
+
+End  -- end of procedure
+
+Procedure PROCESS_PROPERTY_REINSURANCE
+Begin
+
+Write ("%c%s",016020,"Process Property Reinsurance ")
+
+Do GET_LRSSETUP_INFORMATION
+
+If LRSCEDED_ALT:QUOTA_SHARE_TREATY_NUMBER <> 0 Then
+Begin
+   Do QUOTA_SHARE_REINSURANCE
+End
+
+If LRSCEDED_ALT:SURPLUS_TREATY_NUMBER <> 0 Then
+Begin
+   Do SURPLUS_REINSURANCE
+End
+
+-- only have to check the first bucket - if there are
+-- xol transactions then it will always start with
+-- subscript 1 - no expection - ever - dlp
+
+If LRSCEDED_ALT:PROPERTY_XOL_TREATY_NUMBER[1] <> 0 Then
+Begin
+   Do PROPERTY_XOL_REINSURANCE
+End
+
+End
+
+Procedure PROCESS_LIABILITY_REINSURANCE
+Begin
+
+Write ("%c%s",016020,"Process Liability Reinsurance ")
+
+For L_LIAB_SUB = 1 To 6
+Begin
+
+If LRSCEDEDWRK:LIAB[L_LIAB_SUB] <> 0 Or
+   LRSCEDED_ALT:LIAB[L_LIAB_SUB] <> 0 Then
+   Begin
+       L_DIFFERENT_RESV = LRSCEDEDWRK:LIAB[L_LIAB_SUB] - LRSCEDED_ALT:LIAB[L_LIAB_SUB]
+       If L_LIAB_REINS_CO[L_LIAB_SUB] = 0 Then
+       Begin
+           L_LIAB_REINS_CO[L_LIAB_SUB] = LRSCEDEDWRK:LIAB_TREATY_NO[L_LIAB_SUB]
+       End
+
+       If LRSCEDEDWRK:LIAB[L_LIAB_SUB] = 0 Then -- reserve setup
+       Begin
+           L_TRANS_CODE = 76
+       End
+       Else
+       If L_DIFFERENT_RESV > 0 Then
+       Begin
+           L_TRANS_CODE = 78
+       End
+       Else
+       If L_DIFFERENT_RESV < 0 Then
+       Begin
+           L_TRANS_CODE = 77
+       End
+       L_REINS_CODE = L_LIAB_REINS_CO[L_LIAB_SUB]
+       Do UPDATE_LRSDETAIL
+    End
+
+End
+
+/* Payment Recoveries */
+
+L_DIFFERENT_PAID = 0
+
+For L_LIAB_SUB = 1 To 6
+Begin
+If LRSCEDED_ALT:LIAB_CASE_RECOVERY[L_LIAB_SUB] > LRSCEDEDWRK:LIAB_CASE_RECOVERY[L_LIAB_SUB] Then
+Begin
+L_DIFFERENT_PAID = (LRSCEDEDWRK:LIAB_CASE_RECOVERY[L_LIAB_SUB] -
+                    LRSCEDED_ALT:LIAB_CASE_RECOVERY[L_LIAB_SUB])
+
+If LRSCEDED_ALT:LIAB[L_LIAB_SUB] = 0 Then -- final
+Begin
+   L_TRANS_CODE = 72
+End
+Else
+Begin
+   L_TRANS_CODE = 71
+End
+
+L_REINS_CODE = L_LIAB_REINS_CO[L_LIAB_SUB]
+Do UPDATE_LRSDETAIL
+End
+End
+
+For L_LIAB_SUB = 1 To 6
+Begin
+
+If LRSCEDED_ALT:LIAB_CASE_RECOVERY[L_PROP_SUB] < LRSCEDEDWRK:LIAB_CASE_RECOVERY[L_PROP_SUB] Then
+Begin
+
+L_DIFFERENT_PAID = LRSCEDEDWRK:LIAB_CASE_RECOVERY[L_PROP_SUB] -
+                   LRSCEDED_ALT:LIAB_CASE_RECOVERY[L_PROP_SUB]
+
+L_TRANS_CODE = 79
+L_REINS_CODE = L_LIAB_REINS_CO[L_LIAB_SUB]
+Do UPDATE_LRSDETAIL
+
+End
+
+End
+
+/* LAE Reserve processing */
+For L_LIAB_SUB = 1 To 6
+Begin
+   If LRSCEDEDWRK:LIAB_LAE_RESERVE[L_LIAB_SUB] <> 0 Or
+      LRSCEDED_ALT:LIAB_LAE_RESERVE[L_LIAB_SUB] <> 0 Then
+   Begin
+
+       L_TRANS_CODE = 99 -- will show as an error on reports
+
+       L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:LIAB_LAE_RESERVE[L_LIAB_SUB] - LRSCEDED_ALT:LIAB_LAE_RESERVE[L_LIAB_SUB]
+
+       If LRSCEDEDWRK:LIAB_LAE_RESERVE[L_LIAB_SUB] = 0 Then -- reserve setup
+       Begin
+           L_TRANS_CODE = 76
+       End
+
+       If L_DIFFERENT_LAE_RESV > 0 Then
+       Begin
+           L_TRANS_CODE = 78
+       End
+
+       If L_DIFFERENT_LAE_RESV < 0 Then
+       Begin
+           L_TRANS_CODE = 77
+       End
+
+       L_REINS_CODE = L_LIAB_REINS_CO[L_LIAB_SUB]
+       Do UPDATE_LRSDETAIL
+    End
+
+End
+
+/* LAE paid processing */
+For L_LIAB_SUB = 1 To 6
+Begin
+   If LRSCEDEDWRK:LIAB_LAE_RECOVERY[L_LIAB_SUB] <> 0 Or
+      LRSCEDED_ALT:LIAB_LAE_RECOVERY[L_LIAB_SUB] <> 0 Then
+   Begin
+
+       L_TRANS_CODE = 99 -- will show as an error on reports
+
+       L_DIFFERENT_LAE_PAID = LRSCEDEDWRK:LIAB_LAE_RECOVERY[L_LIAB_SUB] - LRSCEDED_ALT:LIAB_LAE_RECOVERY[L_LIAB_SUB]
+
+       If LRSCEDEDWRK:LIAB_LAE_RECOVERY[L_LIAB_SUB] = 0 Then -- reserve setup
+       Begin
+           L_TRANS_CODE = 76
+       End
+
+       If L_DIFFERENT_LAE_PAID > 0 Then
+       Begin
+           L_TRANS_CODE = 78
+       End
+
+       If L_DIFFERENT_LAE_PAID < 0 Then
+       Begin
+           L_TRANS_CODE = 77
+       End
+
+       L_REINS_CODE = L_LIAB_REINS_CO[L_LIAB_SUB]
+       Do UPDATE_LRSDETAIL
+    End
+
+End
+
+End
+
+Procedure GET_LRSSETUP_INFORMATION
+Begin
+
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = L_HOLD_COMPANY_ID,
+                     LRSSETUP:CLAIM_NO   = L_HOLD_CLAIM_NO
+
+L_LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS
+L_SUBLINE          = LRSSETUP:LOB_SUBLINE
+
+End
+
+Procedure QUOTA_SHARE_REINSURANCE
+Begin
+
+L_REINS_CODE = LRSCEDED:QUOTA_SHARE_TREATY_NUMBER
+
+/* case - decrease reserve */
+If LRSCEDEDWRK:QUOTA_SHARE > LRSCEDED_ALT:QUOTA_SHARE Then
+Begin
+    L_DIFFERENT_RESV = LRSCEDEDWRK:QUOTA_SHARE - LRSCEDED_ALT:QUOTA_SHARE
+    If LRSCEDED_ALT:QUOTA_SHARE = 0 Then
+    Begin
+       L_TRANS_CODE  = 72 -- final recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE  = 78 -- decrease recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* case - increase reserve */
+If LRSCEDEDWRK:QUOTA_SHARE < LRSCEDED_ALT:QUOTA_SHARE Then
+Begin
+    L_DIFFERENT_RESV = LRSCEDEDWRK:QUOTA_SHARE - LRSCEDED_ALT:QUOTA_SHARE
+    If LRSCEDEDWRK:QUOTA_SHARE = 0 Then
+    Begin
+       L_TRANS_CODE = 76  -- setup recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE = 77 -- increase recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - decrease reserve */
+If LRSCEDEDWRK:QUOTA_SHARE_LAE_RESERVE > LRSCEDED_ALT:QUOTA_SHARE_LAE_RESERVE Then
+Begin
+    L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:QUOTA_SHARE_LAE_RESERVE - LRSCEDED_ALT:QUOTA_SHARE_LAE_RESERVE
+    If LRSCEDED_ALT:QUOTA_SHARE_LAE = 0 Then
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 78
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - increase reserve */
+If LRSCEDEDWRK:QUOTA_SHARE_LAE_RESERVE < LRSCEDED_ALT:QUOTA_SHARE_LAE_RESERVE Then
+Begin
+    L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:QUOTA_SHARE_LAE_RESERVE - LRSCEDED_ALT:QUOTA_SHARE_LAE_RESERVE
+    If LRSCEDEDWRK:QUOTA_SHARE_LAE = 0 Then
+    Begin
+        L_TRANS_CODE = 76
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 77
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* Recoveries */
+
+L_DIFFERENT_PAID = 0
+
+If LRSCEDED_ALT:QUOTA_SHARE_CASE_RECOVERY > LRSCEDEDWRK:QUOTA_SHARE_CASE_RECOVERY Then
+Begin
+
+L_DIFFERENT_PAID = (LRSCEDEDWRK:QUOTA_SHARE_CASE_RECOVERY -
+                    LRSCEDED_ALT:QUOTA_SHARE_CASE_RECOVERY)
+
+If LRSCEDED:QUOTA_SHARE = 0 Then -- final
+Begin
+   L_TRANS_CODE = 72
+End
+Else
+Begin
+   L_TRANS_CODE = 71
+End
+Do UPDATE_LRSDETAIL
+
+/*
+   if the quota share is reserverd to the max and there are subsequent
+   payments the reserves have to be offset by the amount of the payment
+   this variable (l_maximum_quota_share) is set in the get_quota_share_property
+   procedure
+*/
+
+If L_MAXIMUM_QUOTA_SHARE = "Y" Then
+Begin
+    L_DIFFERENT_RESV = (LRSCEDEDWRK:QUOTA_SHARE_CASE_RECOVERY -
+                        LRSCEDED_ALT:QUOTA_SHARE_CASE_RECOVERY) * -1
+    L_TRANS_CODE     = 78
+    Do UPDATE_LRSDETAIL
+End
+
+End
+
+If LRSCEDED_ALT:QUOTA_SHARE_CASE_RECOVERY < LRSCEDEDWRK:QUOTA_SHARE_CASE_RECOVERY Then
+Begin
+
+L_DIFFERENT_PAID = LRSCEDEDWRK:QUOTA_SHARE_CASE_RECOVERY -
+                   LRSCEDED_ALT:QUOTA_SHARE_CASE_RECOVERY
+
+L_TRANS_CODE = 79
+Do UPDATE_LRSDETAIL
+
+End
+
+/* LAE recovery  */
+
+L_DIFFERENT_LAE_PAID = 0.00
+
+If LRSCEDED_ALT:QUOTA_SHARE_LAE_RECOVERY > LRSCEDEDWRK:QUOTA_SHARE_LAE_RECOVERY Then
+Begin
+
+L_DIFFERENT_LAE_PAID = (LRSCEDEDWRK:QUOTA_SHARE_LAE_RECOVERY -
+                        LRSCEDED_ALT:QUOTA_SHARE_LAE_RECOVERY)
+
+If LRSCEDED:QUOTA_SHARE = 0 Then -- final
+Begin
+   L_TRANS_CODE = 72
+End
+Else
+Begin
+   L_TRANS_CODE = 71
+End
+Do UPDATE_LRSDETAIL
+
+End -- end of lae recovery
+
+End -- end of procedure
+
+Procedure SURPLUS_REINSURANCE
+Begin
+
+L_REINS_CODE = LRSCEDED_ALT:SURPLUS_TREATY_NUMBER
+/* case - decrease reserve */
+
+If LRSCEDEDWRK:SURPLUS_CASE_RESERVE > LRSCEDED_ALT:SURPLUS_CASE_RESERVE Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_CASE_RESERVE > 0.00 Then
+    Begin
+         L_DIFFERENT_RESV = LRSCEDEDWRK:SURPLUS_CASE_RESERVE
+                          - LRSCEDED_ALT:SURPLUS_CASE_RESERVE
+    End
+    Else
+    Begin
+         L_DIFFERENT_RESV = LRSCEDED_ALT:SURPLUS_CASE_RESERVE
+    End
+
+    If LRSCEDED_ALT:SURPLUS_CASE_RESERVE = 0 Then
+    Begin
+       L_TRANS_CODE  = 72 -- final recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE  = 78 -- decrease recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* case - increase reserve */
+If LRSCEDEDWRK:SURPLUS_CASE_RESERVE < LRSCEDED_ALT:SURPLUS_CASE_RESERVE  Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_CASE_RESERVE < 0 Then
+    Begin
+         L_DIFFERENT_RESV = LRSCEDEDWRK:SURPLUS_CASE_RESERVE
+                          - LRSCEDED_ALT:SURPLUS_CASE_RESERVE
+    End
+    Else
+    Begin
+         L_DIFFERENT_RESV = LRSCEDED_ALT:SURPLUS_CASE_RESERVE
+    End
+
+    If LRSCEDEDWRK:SURPLUS_CASE_RESERVE = 0 Then
+    Begin
+       L_TRANS_CODE = 76  -- setup recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE = 77 -- increase recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - decrease reserve */
+If LRSCEDEDWRK:SURPLUS_LAE_RESERVE > LRSCEDED_ALT:SURPLUS_LAE_RESERVE Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_LAE_RESERVE > 0 Then
+    Begin
+        L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:SURPLUS_LAE_RESERVE
+                             - LRSCEDED_ALT:SURPLUS_LAE_RESERVE
+    End
+    Else
+    Begin
+        L_DIFFERENT_LAE_RESV = LRSCEDED_ALT:SURPLUS_LAE_RESERVE
+    End
+
+    If LRSCEDED_ALT:SURPLUS_LAE_RESERVE = 0 Then
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 78
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - increase reserve */
+If LRSCEDEDWRK:SURPLUS_LAE_RESERVE < LRSCEDED_ALT:SURPLUS_LAE_RESERVE Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_LAE_RESERVE < 0.00 Then
+    Begin
+        L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:SURPLUS_LAE_RESERVE
+                             - LRSCEDED_ALT:SURPLUS_LAE_RESERVE
+    End
+    Else
+    Begin
+        L_DIFFERENT_LAE_RESV = LRSCEDED_ALT:SURPLUS_LAE_RESERVE
+    End
+
+    If LRSCEDEDWRK:SURPLUS_LAE_RESERVE = 0 Then
+    Begin
+        L_TRANS_CODE = 76
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 77
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* Recoveries */
+
+L_DIFFERENT_PAID = 0
+
+If LRSCEDED_ALT:SURPLUS_CASE_RECOVERY > LRSCEDEDWRK:SURPLUS_CASE_RECOVERY Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_CASE_RECOVERY > 0 Then
+    Begin
+         L_DIFFERENT_PAID = (LRSCEDEDWRK:SURPLUS_CASE_RECOVERY -
+                             LRSCEDED_ALT:SURPLUS_CASE_RECOVERY)
+    End
+    Else
+    Begin
+        L_DIFFERENT_PAID = LRSCEDED_ALT:SURPLUS_CASE_RECOVERY
+    End
+    If LRSCEDED:PROPERTY_SURPLUS = 0 Then -- final
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 71
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+If LRSCEDED_ALT:SURPLUS_CASE_RECOVERY < LRSCEDEDWRK:SURPLUS_CASE_RECOVERY Then
+Begin
+    If LRSCEDEDWRK:SURPLUS_CASE_RECOVERY < 0.00 Then
+    Begin
+        L_DIFFERENT_PAID = LRSCEDEDWRK:SURPLUS_CASE_RECOVERY -
+                           LRSCEDED_ALT:SURPLUS_CASE_RECOVERY
+    End
+    Else
+    Begin
+        L_DIFFERENT_PAID = LRSCEDED_ALT:SURPLUS_CASE_RECOVERY
+    End
+
+    L_TRANS_CODE = 79
+    Do UPDATE_LRSDETAIL
+End
+
+/* setting up reserve change */
+/* L_DIFFERENT_RESV = (LRSCEDEDWRK:SURPLUS_CASE_RECOVERY -
+                       LRSCEDED_alt:SURPLUS_CASE_RECOVERY) * -1
+If L_DIFFERENT_RESV < 0 Then
+Begin
+    L_TRANS_CODE = 77 -- increase reserve
+End
+Else If L_DIFFERENT_RESV > 0 Then
+Begin
+   L_TRANS_CODE = 78  -- decrease reserve
+End
+
+If L_DIFFERENT_RESV <> 0 Then -- do not write out zero records
+Begin
+    Do UPDATE_LRSDETAIL
+End
+*/
+
+/* lae recoveries
+   added February 9, 2003
+   DLP */
+
+/* lae - decrease recovery */
+If LRSCEDEDWRK:SURPLUS_LAE_RECOVERY > LRSCEDED_ALT:SURPLUS_LAE_RECOVERY Then
+Begin
+    L_DIFFERENT_LAE_PAID = LRSCEDEDWRK:SURPLUS_LAE_RECOVERY
+                         - LRSCEDED_ALT:SURPLUS_LAE_RECOVERY
+    If LRSCEDED:SURPLUS_LAE_RECOVERY = 0 Then
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 78
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - increase recovery */
+If LRSCEDEDWRK:SURPLUS_LAE_RECOVERY < LRSCEDED_ALT:SURPLUS_LAE_RECOVERY Then
+Begin
+    L_DIFFERENT_LAE_PAID = LRSCEDEDWRK:SURPLUS_LAE_RECOVERY
+                         - LRSCEDED_ALT:SURPLUS_LAE_RECOVERY
+    If LRSCEDEDWRK:SURPLUS_LAE_RECOVERY = 0 Then
+    Begin
+        L_TRANS_CODE = 76
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 77
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+End -- end of procedure
+
+Procedure PROPERTY_XOL_REINSURANCE
+Begin
+
+For L_PROP_SUB = 1 To 6
+Begin
+
+L_REINS_CODE = LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[L_PROP_SUB]
+
+L_DIFFERENT_RESV = 0
+L_DIFFERENT_PAID = 0
+L_DIFFERENT_LAE_RESV = 0
+L_DIFFERENT_LAE_PAID = 0
+
+/* case - decrease reserve */
+
+If LRSCEDEDWRK:PROPERTY_XOL[L_PROP_SUB] > LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB] Then
+Begin
+    L_DIFFERENT_RESV = LRSCEDEDWRK:PROPERTY_XOL[L_PROP_SUB]
+                     - LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB]
+    If LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB] = 0 Then
+    Begin
+       L_TRANS_CODE  = 72 -- final recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE  = 78 -- decrease recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* case - increase reserve */
+If LRSCEDEDWRK:PROPERTY_XOL[L_PROP_SUB] < LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB]  Then
+Begin
+    L_DIFFERENT_RESV = LRSCEDEDWRK:PROPERTY_XOL[L_PROP_SUB]
+                     - LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB]
+    If LRSCEDEDWRK:PROPERTY_XOL[L_PROP_SUB] = 0 Then
+    Begin
+       L_TRANS_CODE = 76  -- setup recovery
+    End
+    Else
+    Begin
+       L_TRANS_CODE = 77 -- increase recovery reserve
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - decrease reserve */
+If LRSCEDEDWRK:PROPERTY_XOL_LAE[L_PROP_SUB] > LRSCEDED_ALT:PROPERTY_XOL_LAE[L_PROP_SUB] Then
+Begin
+    L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:PROPERTY_XOL_LAE[L_PROP_SUB]
+                         - LRSCEDED_ALT:PROPERTY_XOL_LAE[L_PROP_SUB]
+    If LRSCEDED_ALT:PROPERTY_XOL_LAE[L_PROP_SUB] = 0 Then
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 78
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - increase reserve */
+If LRSCEDEDWRK:PROPERTY_XOL_LAE[L_PROP_SUB] < LRSCEDED_ALT:PROPERTY_XOL_LAE[L_PROP_SUB] Then
+Begin
+    L_DIFFERENT_LAE_RESV = LRSCEDEDWRK:PROPERTY_XOL_LAE[L_PROP_SUB]
+                         - LRSCEDED_ALT:PROPERTY_XOL_LAE[L_PROP_SUB]
+    If LRSCEDEDWRK:PROPERTY_XOL_LAE[L_PROP_SUB] = 0 Then
+    Begin
+        L_TRANS_CODE = 76
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 77
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* XOL Recoveries */
+
+L_DIFFERENT_PAID = 0
+
+If LRSCEDED_ALT:XOL_CASE_RECOVERY[L_PROP_SUB] > LRSCEDEDWRK:XOL_CASE_RECOVERY[L_PROP_SUB] Then
+Begin
+
+L_DIFFERENT_PAID = (LRSCEDEDWRK:XOL_CASE_RECOVERY[L_PROP_SUB] -
+                    LRSCEDED_ALT:XOL_CASE_RECOVERY[L_PROP_SUB])
+
+If LRSCEDED_ALT:PROPERTY_XOL[L_PROP_SUB] = 0 Then -- final
+Begin
+   L_TRANS_CODE = 72
+End
+Else
+Begin
+   L_TRANS_CODE = 71
+End
+Do UPDATE_LRSDETAIL
+
+
+End
+
+If LRSCEDED_ALT:XOL_CASE_RECOVERY[L_PROP_SUB] < LRSCEDEDWRK:XOL_CASE_RECOVERY[L_PROP_SUB] Then
+Begin
+
+L_DIFFERENT_PAID = LRSCEDEDWRK:XOL_CASE_RECOVERY[L_PROP_SUB] -
+                   LRSCEDED_ALT:XOL_CASE_RECOVERY[L_PROP_SUB]
+
+L_TRANS_CODE = 79
+Do UPDATE_LRSDETAIL
+
+End
+
+/* lae recoveries
+   added February 12, 2003
+   DLP */
+
+/* lae - decrease recovery */
+If LRSCEDEDWRK:XOL_LAE_RECOVERY[L_PROP_SUB] > LRSCEDED_ALT:XOL_LAE_RECOVERY[L_PROP_SUB] Then
+Begin
+    L_DIFFERENT_LAE_PAID = LRSCEDEDWRK:XOL_LAE_RECOVERY[L_PROP_SUB]
+                         - LRSCEDED_ALT:XOL_LAE_RECOVERY[L_PROP_SUB]
+    If LRSCEDED_ALT:XOL_LAE_RECOVERY[L_PROP_SUB] = 0 Then
+    Begin
+        L_TRANS_CODE = 72
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 78
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+/* lae - increase recovery */
+If LRSCEDEDWRK:XOL_LAE_RECOVERY[L_PROP_SUB] < LRSCEDED_ALT:XOL_LAE_RECOVERY[L_PROP_SUB] Then
+Begin
+    L_DIFFERENT_LAE_PAID = LRSCEDEDWRK:XOL_LAE_RECOVERY[L_PROP_SUB]
+                         - LRSCEDED_ALT:XOL_LAE_RECOVERY[L_PROP_SUB]
+    If LRSCEDEDWRK:XOL_LAE_RECOVERY[L_PROP_SUB] = 0 Then
+    Begin
+        L_TRANS_CODE = 76
+    End
+    Else
+    Begin
+        L_TRANS_CODE = 77
+    End
+    Do UPDATE_LRSDETAIL
+End
+
+-- end of lae
+
+End -- end of sub loop added 08/19/2003 - dlp
+
+End -- end of procedure
+
+Procedure UPDATE_LRSDETAIL
+Begin
+
+/* using lrsceded instead of lrscededwrk because on the first time
+that the claim is processed lrscededwrk is a zero record - there
+would be no information to enter into lrsdetail
+*/
+
+L_LRSDETAIL_SUB_CODE = 0
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = L_HOLD_COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO   = L_HOLD_CLAIM_NO, Approximate
+
+While LRSDETAIL:COMPANY_ID = L_HOLD_COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = L_HOLD_CLAIM_NO
+      Begin
+      If L_LRSDETAIL_SUB_CODE < LRSDETAIL:SUB_CODE Then
+      Begin
+          L_LRSDETAIL_SUB_CODE = LRSDETAIL:SUB_CODE
+      End
+          Next LRSDETAIL
+      End
+
+L_LRSDETAIL_SUB_CODE = L_LRSDETAIL_SUB_CODE + 10
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = L_HOLD_COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = L_HOLD_CLAIM_NO,
+                          LRSDETAIL_ALT:SUB_CODE   = L_LRSDETAIL_SUB_CODE
+
+If LRSDETAIL_ALT:COMPANY_ID <> L_HOLD_COMPANY_ID Or
+   LRSDETAIL_ALT:CLAIM_NO   <> L_HOLD_CLAIM_NO Or
+   LRSDETAIL_ALT:SUB_CODE   <> L_LRSDETAIL_SUB_CODE Then
+   Begin
+   If L_DIFFERENT_RESV <> 0.00 Or
+      L_DIFFERENT_PAID <> 0.00 Or
+      L_DIFFERENT_LAE_RESV <> 0.00 Or
+      L_DIFFERENT_LAE_PAID <> 0 Then
+      Begin
+   Add LRSDETAIL_ALT
+   Begin
+
+       LRSDETAIL_ALT:COMPANY_ID                     = L_HOLD_COMPANY_ID
+       LRSDETAIL_ALT:CLAIM_NO                       = L_HOLD_CLAIM_NO
+       LRSDETAIL_ALT:SUB_CODE                       = L_LRSDETAIL_SUB_CODE
+       LRSDETAIL_ALT:TRANS_DATE                     = L_HOLD_TRANS_DATE
+       LRSDETAIL_ALT:BATCH                          = 0
+       LRSDETAIL_ALT:MAJOR_CLASS                    = L_LINE_OF_BUSINESS
+       LRSDETAIL_ALT:LINE_OF_BUSINESS               = L_LINE_OF_BUSINESS
+       LRSDETAIL_ALT:LOB_SUBLINE                    = L_LOB_SUBLINE
+       LRSDETAIL_ALT:LOB_EXT                        = ""
+       LRSDETAIL_ALT:VENDOR_NO                      = 0
+       LRSDETAIL_ALT:CAUSE_OF_LOSS                  = LRSCEDED_ALT:CAUSE_OF_LOSS
+       LRSDETAIL_ALT:CAUSE_LOSS_SUBLINE             = LRSCEDED_ALT:CAUSE_LOSS_SUBLINE
+       LRSDETAIL_ALT:TRANS_CODE                     = L_TRANS_CODE
+       LRSDETAIL_ALT:REINS_CO                       = L_REINS_CODE
+
+       LRSDETAIL_ALT:LOSS_RESV                      = L_DIFFERENT_RESV
+       LRSDETAIL_ALT:LOSS_PAID                      = L_DIFFERENT_PAID
+       LRSDETAIL_ALT:LAE_RESV                       = L_DIFFERENT_LAE_RESV
+       LRSDETAIL_ALT:LAE_PAID                       = L_DIFFERENT_LAE_PAID
+       LRSDETAIL_ALT:MISC                           = "Automatic Reinsurance"
+       LRSDETAIL_ALT:CHECK_NO                       = ""
+       LRSDETAIL_ALT:CHECK_DATE                     = 00.00.0000
+       LRSDETAIL_ALT:SELECT                         = ""
+       LRSDETAIL_ALT:SYSTEM_DATE                    = TODAYSDATE
+       LRSDETAIL_ALT:ULAE                           = ""
+       LRSDETAIL_ALT:ALAE                           = ""
+       LRSDETAIL_ALT:USER_ID                        = USERNAME
+       LRSDETAIL_ALT:SUBRO                          = ""
+       LRSDETAIL_ALT:SALVAGE                        = ""
+       LRSDETAIL_ALT:SUMMARY_SUB_CODE               = 0
+       LRSDETAIL_ALT:LRSCHECK_SUB_CODE              = 0
+       LRSDETAIL_ALT:REOPENED                       = ""
+       LRSDETAIL_ALT:OVERPAYMENT                    = ""
+       LRSDETAIL_ALT:PAYMENT_CORRECTION             = ""
+       LRSDETAIL_ALT:EXPANSION                      = ""
+   End
+
+   End -- end of zero record checking
+
+   End
+
+L_DIFFERENT_RESV     = 0.00
+L_DIFFERENT_PAID     = 0.00
+L_DIFFERENT_LAE_RESV = 0.00
+L_DIFFERENT_LAE_PAID = 0.00
+
+End -- end of procedure
+
+End -- end of program

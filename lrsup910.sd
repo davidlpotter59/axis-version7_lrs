@@ -1,0 +1,851 @@
+%%
+Program
+        Name         = "lrsup910" ;
+        Type         = "File" ;
+        Domain       = "lrsdetail" ;
+        Padcharacter = Space ;
+
+        Local Unsigned Ascii Number L_AGENT_NO[4] ,
+                                    L_LINE_OF_BUSINESS[4],
+                                    L_PAYMENT_PLAN[4] ,
+                                    L_CANCELLATION_CODE[4],
+                                    L_PERSONAL_UNDERWRITER[2],
+                                    L_COMMERCIAL_UNDERWRITER[2],
+                                    L_MASTER_COUNTER[7],
+                                    L_COUNTER[7];
+
+        Local String L_COMPANY_ID[10],
+                     L_POLICY_STATUS[10] ,
+                     L_AGENT_NAME[50],
+                     L_AGENT_PHONE_NUMBER[10],
+                     L_INSURED_NAME[50] ,
+                     L_UNDERWRITER_NAME[50],
+                     L_UNDERWRITER_EXTENSION[5],
+                     L_LINE_OF_BUSINESS_STR[30] ,
+                     L_ZIP_CODE[5],
+                     L_CANCELLATION_REASON[100] ,
+                     L_PAYMENT_PLAN_STR[30] ;
+
+        Local Wdate L_EFF_DATE ,
+                    L_EXP_DATE ,
+                    L_CX_DATE ,
+                    L_RENEWAL_EFF_DATE ,
+                    L_RENEWAL_TRANS_DATE ,
+                    L_REINSTATED_DATE ;
+
+        Local String L_RENEWAL_STATUS[10];
+
+/* last check information */
+        String L_LAST_CHECK_NO[10];
+        Signed Ascii Number L_LAST_CHECK_AMOUNT[9]=0/decimals=2;
+        Wdate L_LAST_PAYMENT_DATE ;
+
+/* next installment information */
+        Signed Ascii Number L_NEXT_INSTALLMENT_AMOUNT[9]=0/decimals=2;
+        Wdate L_NEXT_DUE_DATE;
+        String L_SFS[3]="SFS" ;
+        String L_ENTER[1];
+
+/* current amount due information */
+        Signed Ascii Number L_CURRENT_AMOUNT[7]=0/decimals=2;
+        Wdate L_CURRENT_DUE_DATE;
+
+/* past due information */
+        Signed Ascii Number L_PAST_DUE_AMOUNT[7]=0/decimals=2;
+        Wdate L_PAST_DUE_DATE;
+
+/* future due information */
+        Signed Ascii Number L_FUTURE_AMOUNT[7]=0/decimals=2;
+        Wdate L_FUTURE_DUE_DATE;
+
+/* return premium information */
+        Wdate L_RETURN_PREMIUM_CHECK_DATE;
+        Signed Ascii Number L_RETURN_PREMIUM_CHECK_AMOUNT[7]=0/decimals=2;
+        String L_RETURN_PREMIUM_CHECK_NO[10]="";
+        String L_RETURN_PREMIUM_PAYTO_NAME[50];
+
+/* mortgagee information */
+        Unsigned Ascii Number L_SFPNAME_LOOP_CTR[2]=0/decimals=0;
+        Array[3] Of String L_MORT_NAME[50],
+                           L_MORT_ADDRESS[50];
+        String L_MORT_CITY[30],
+               L_MORT_STATE[2],
+               L_MORT_ZIPCODE[9],
+               L_MORT_TELEPHONE[10];
+        Unsigned Ascii Number L_CTR[2];
+        String L_MORT_TYPE[1],
+               L_MORT_FOUND[1],
+               L_MORTGAGE_ID[10],
+               L_PAYOR_NAME[50],
+               L_ACCOUNT_NO[25];
+
+/* dwelling limits */
+        Unsigned Ascii Number L_COVERAGE_A[9]=0/decimals=0;
+
+/* ivrout.txt file name - the ./ will force the file to the current directory and
+   not to where it may find the existence of another file */
+        String L_IVROUT_FILE[10]="ivrout.txt";
+        Unsigned Ascii Number L_END_OF_STRING[4]=0/decimals=0;
+        Unsigned Ascii Number L_POS_SUB[5]=0/decimals=0;
+        String L_IVR_DONE[7]="ivrdone";
+        String L_IVR_LOG[10]="ivrlog.out";
+
+/* reverse name include file */
+        Include "sfsrevname.var"
+
+Initialisation
+/* create new ivrmaster file */
+
+Write ("<014>")
+Write ("%c%s",01001,"Processing IVRUP001 - Please Wait ......")
+
+Access SFSDEFAULT, Set SFSDEFAULT:SFS_CODE = L_SFS
+
+Access SFSCOMPANY, Set SFSCOMPANY:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+
+If SFSCOMPANY:DEBUG_MODE One Of 1 Then
+Begin
+   Proc ("ivrmaster.mk")
+End
+Else
+Begin
+   Proc ("ivrmaster.mk")/noconsole
+End
+
+Deletefile (L_IVR_LOG)
+Writefile (L_IVR_LOG,"%s%s","Log File Created on : ",Str(TODAYSDATE)+" "+Str(SYSTEMTIME)+"<NL>")
+
+Update
+
+L_COUNTER = L_COUNTER + 1
+
+If L_COUNTER Mod 100 = 0 Then
+Begin
+   Write ("%c%s%n",05001,"Counter ",L_COUNTER)
+End
+If L_COUNTER < 100000001 Then
+Begin
+Do ACCESS_SFPNAME
+Do ACCESS_SFPMASTER
+Do ACCESS_SFSAGENT
+Do ACCESS_SFSLINE
+If SFSLINE:LOB_CODE One Of "DWELLING", "HOME"
+Then
+Begin
+    Do ACCESS_SFSPERUN
+    Do ACCESS_PLPPERSONAL -- get coverage A limits
+End
+Else
+Begin
+    Do ACCESS_SFSCOMUN
+    L_COVERAGE_A = 0 -- all others lines this is 0
+End
+Do ACCESS_ARSPAYPLAN
+Do ACCESS_SFSCXREASON
+Do ACCESS_ARSCHKSU
+Do ACCESS_ARSBILLING
+Do ACCESS_ARSCHECK
+Do ACCESS_SFPSUPP
+Do UPDATE_IVRMASTER
+End
+
+Screen Exit
+
+Do WRITE_IVROUT_FIELD_NAMES
+Do WRITE_IVROUT
+Do WRITE_IVRDONE
+Do WRITE_IVRLOG
+
+Write ("%c%s%n",18001,"Number of Records on File .........",L_COUNTER)
+Write ("<NL><NL>")
+
+Procedure Definition
+
+Procedure ACCESS_SFPNAME
+Begin
+
+--Write ("%c%s%n",05001,"Processing ACCESS_SFPNAME ........ ",L_COUNTER)
+
+/* house cleaning */
+L_EFF_DATE          = 00.00.0000
+L_EXP_DATE          = 00.00.0000
+L_AGENT_NO          = 0000
+L_COMPANY_ID        = ""
+L_POLICY_STATUS     = ""
+L_INSURED_NAME      = ""
+L_LINE_OF_BUSINESS  = 0
+L_PAYMENT_PLAN      = 0
+L_CANCELLATION_CODE = 0
+L_ZIP_CODE          = ""
+
+Access SFPNAME, Set SFPNAME:POLICY_NO    = SFPCURRENT:POLICY_NO,
+                    SFPNAME:POL_YEAR     = SFPCURRENT:POL_YEAR,
+                    SFPNAME:END_SEQUENCE = SFPCURRENT:END_SEQUENCE, Generic
+
+L_EFF_DATE          = SFPNAME:EFF_DATE
+L_EXP_DATE          = SFPNAME:EXP_DATE
+L_AGENT_NO          = SFPNAME:AGENT_NO
+L_COMPANY_ID        = SFPNAME:COMPANY_ID
+L_POLICY_STATUS     = SFPNAME:STATUS
+L_INSURED_NAME      = SFPNAME:NAME[1]
+L_LINE_OF_BUSINESS  = SFPNAME:LINE_OF_BUSINESS
+L_PAYMENT_PLAN      = SFPNAME:PAYMENT_PLAN
+L_CANCELLATION_CODE = SFPNAME:CANCELLATION_CODE
+L_ZIP_CODE          = SFPNAME:STR_ZIPCODE[1,5]
+
+/* reverse insured's name */
+I_NAME = L_INSURED_NAME
+Include "sfsrevname.pro"
+L_INSURED_NAME = I_REV_NAME
+
+End
+
+Procedure ACCESS_SFPMASTER
+Begin
+
+/* house cleaning */
+L_REINSTATED_DATE    = 00.00.0000
+L_CX_DATE            = 00.00.0000
+L_RENEWAL_EFF_DATE   = 00.00.0000
+L_RENEWAL_TRANS_DATE = 00.00.0000
+
+Access SFPMASTER, Set SFPMASTER:POLICY_NO    = SFPNAME:POLICY_NO,
+                      SFPMASTER:POL_YEAR     = SFPNAME:POL_YEAR,
+                      SFPMASTER:END_SEQUENCE = SFPNAME:END_SEQUENCE
+
+If SFPMASTER:TRANS_CODE = 16 Then
+Begin
+    L_REINSTATED_DATE = SFPMASTER:TRANS_DATE
+End
+Else
+Begin
+   L_REINSTATED_DATE  = 00.00.0000
+
+End
+
+If SFPMASTER:TRANS_CODE = 11 Then
+Begin
+-- change requested 10/14/2004
+    L_CX_DATE = SFPMASTER:TRANS_EFF
+End
+Else
+Begin
+    L_CX_DATE = 00.00.0000
+End
+
+If SFPMASTER:TRANS_CODE One Of 14 And
+   SFPMASTER:TRANS_EFF > TODAYSDATE Then
+   Begin
+       L_RENEWAL_EFF_DATE   = SFPMASTER:TRANS_EFF
+       L_RENEWAL_TRANS_DATE = SFPMASTER:TRANS_DATE
+       L_RENEWAL_STATUS     = "RENEWED"
+   End
+   Else
+   Begin
+       L_RENEWAL_TRANS_DATE = 00.00.0000
+       L_RENEWAL_EFF_DATE   = 00.00.0000
+       L_RENEWAL_STATUS     = ""
+   End
+
+End
+
+Procedure ACCESS_SFSAGENT
+Begin
+
+--Write ("%c%s%n",05050,"Processing ACCESS_SFSAGENT ....... ",L_COUNTER)
+
+/* house cleaning */
+L_AGENT_NAME             = ""
+L_PERSONAL_UNDERWRITER   = 0
+L_COMMERCIAL_UNDERWRITER = 0
+L_AGENT_PHONE_NUMBER     = ""
+
+Access SFSAGENT, Set SFSAGENT:COMPANY_ID = L_COMPANY_ID,
+                     SFSAGENT:AGENT_NO   = L_AGENT_NO, Generic
+
+L_AGENT_NAME             = SFSAGENT:NAME[1]
+L_PERSONAL_UNDERWRITER   = SFSAGENT:PERSONAL_UNDERWRITER
+L_COMMERCIAL_UNDERWRITER = SFSAGENT:COMMERCIAL_UNDERWRITER
+L_AGENT_PHONE_NUMBER     = SFSAGENT:TELEPHONE[1]
+
+End
+
+Procedure ACCESS_SFSLINE
+Begin
+
+--Write ("%c%s%n",06001,"Processing ACCESS_SFSLINE ........ ",L_COUNTER)
+
+/* house cleaning */
+L_LINE_OF_BUSINESS_STR = ""
+
+Access SFSLINE, Set SFSLINE:COMPANY_ID       = L_COMPANY_ID,
+                    SFSLINE:LINE_OF_BUSINESS = L_LINE_OF_BUSINESS,
+                    SFSLINE:LOB_SUBLINE      = "00", Generic
+
+L_LINE_OF_BUSINESS_STR = SFSLINE:DESCRIPTION
+
+End
+
+Procedure ACCESS_SFSPERUN
+Begin
+
+--Write ("%c%s%n",06050,"Processing ACCESS_SFSPERUN ....... ",L_COUNTER)
+
+/* house cleaning */
+L_UNDERWRITER_NAME      = ""
+L_UNDERWRITER_EXTENSION = ""
+
+Access SFSPERUN, Set SFSPERUN:COMPANY_ID           = L_COMPANY_ID,
+                     SFSPERUN:PERSONAL_UNDERWRITER = L_PERSONAL_UNDERWRITER, Generic
+
+L_UNDERWRITER_NAME      = SFSPERUN:NAME
+If SFSPERUN:EXTENSION <> 0 Then
+Begin
+   L_UNDERWRITER_EXTENSION = Str(SFSPERUN:EXTENSION)
+End
+Else
+Begin
+    L_UNDERWRITER_EXTENSION = "    0"
+End
+
+End
+
+Procedure ACCESS_PLPPERSONAL
+Begin
+
+L_COVERAGE_A = 0
+
+Access PLPPERSONAL, Set PLPPERSONAL:POLICY_NO    = SFPCURRENT:POLICY_NO,
+                        PLPPERSONAL:POL_YEAR     = SFPCURRENT:POL_YEAR,
+                        PLPPERSONAL:END_SEQUENCE = SFPCURRENT:END_SEQUENCE, Generic
+
+While PLPPERSONAL:POLICY_NO    = SFPCURRENT:POLICY_NO And
+      PLPPERSONAL:POL_YEAR     = SFPCURRENT:POL_YEAR And
+      PLPPERSONAL:END_SEQUENCE = SFPCURRENT:END_SEQUENCE
+      Begin
+          If L_COVERAGE_A = 0 Then
+          Begin
+              L_COVERAGE_A = PLPPERSONAL:DWELLING_LIMIT
+          End
+      Next PLPPERSONAL
+      End
+
+End -- end of procedure
+
+Procedure ACCESS_SFSCOMUN
+Begin
+
+--Write ("%c%s%n",07001,"Processing ACCESS_SFSCOMUN ....... ",L_COUNTER)
+
+/* house cleaning */
+L_UNDERWRITER_NAME      = ""
+L_UNDERWRITER_EXTENSION = ""
+
+Access SFSCOMUN, Set SFSCOMUN:COMPANY_ID             = L_COMPANY_ID,
+                     SFSCOMUN:COMMERCIAL_UNDERWRITER = L_COMMERCIAL_UNDERWRITER, Generic
+
+L_UNDERWRITER_NAME      = SFSCOMUN:NAME
+If SFSCOMUN:EXTENSION <> 0 Then
+Begin
+   L_UNDERWRITER_EXTENSION = Str(SFSCOMUN:EXTENSION)
+End
+Else
+Begin
+    L_UNDERWRITER_EXTENSION = "    0"
+End
+
+End
+
+Procedure ACCESS_ARSPAYPLAN
+Begin
+
+--Write ("%c%s%n",07050,"Processing ACCESS_ARSPAYPLAN ..... ",L_COUNTER)
+
+/* house cleaning */
+L_PAYMENT_PLAN_STR = ""
+
+Access ARSPAYPLAN, Set ARSPAYPLAN:COMPANY_ID       = L_COMPANY_ID,
+                       ARSPAYPLAN:LINE_OF_BUSINESS = L_LINE_OF_BUSINESS,
+                       ARSPAYPLAN:PAYMENT_PLAN     = L_PAYMENT_PLAN, Generic
+
+L_PAYMENT_PLAN_STR = Trun(ARSPAYPLAN:DESCRIPTION)
+
+End
+
+Procedure ACCESS_SFSCXREASON
+Begin
+
+--Write ("%c%s%n",08001,"Processing ACCESS_SFSCXREASON .... ",L_COUNTER)
+
+/* house cleaning */
+L_CANCELLATION_REASON = ""
+
+Access SFSCXREASON, Set SFSCXREASON:COMPANY_ID        = L_COMPANY_ID,
+                        SFSCXREASON:CANCELLATION_CODE = L_CANCELLATION_CODE, Generic
+
+L_END_OF_STRING = Pos("<NL>",SFSCXREASON:REASON)
+
+If SFSCXREASON:CANCELLATION_CODE One Of 100 Then
+Begin
+For L_POS_SUB = 1 To 100
+Begin
+    If SFSCXREASON:REASON[L_POS_SUB,L_POS_SUB] <> "<NL>" Then
+    Begin
+        L_CANCELLATION_REASON[L_POS_SUB] = Trun(SFSCXREASON:REASON[L_POS_SUB,L_POS_SUB])
+    End
+    Else
+    Begin
+        L_CANCELLATION_REASON[L_POS_SUB] = " "
+    End
+End -- end of for loop
+End
+Else
+Begin
+If L_CANCELLATION_CODE > 0 Then
+Begin
+    L_CANCELLATION_REASON = "OTHER"
+End
+End
+
+End
+
+Procedure ACCESS_ARSCHKSU
+Begin
+
+--Write ("%c%s%n",08050,"Processing ACCESS_ARSCHKSU ....... ",L_COUNTER)
+
+/* house cleaning */
+L_LAST_PAYMENT_DATE = 00.00.0000
+L_LAST_CHECK_NO     = ""
+L_LAST_CHECK_AMOUNT = 0.00
+
+Access ARSCHKSU, Set ARSCHKSU:POLICY_NO  = SFPNAME:POLICY_NO, Using Fourth Index, Approximate
+
+While ARSCHKSU:POLICY_NO  = SFPNAME:POLICY_NO
+      Begin
+          If ARSCHKSU:TRANS_DATE > L_LAST_PAYMENT_DATE And
+             ARSCHKSU:DISPOSITION = "CLEAR" Then
+             Begin
+                L_LAST_PAYMENT_DATE = ARSCHKSU:TRANS_DATE
+                L_LAST_CHECK_NO     = ARSCHKSU:CHECK_NO
+                L_LAST_CHECK_AMOUNT = ARSCHKSU:CHECK_AMOUNT
+             End
+      Next ARSCHKSU
+      End
+
+End -- end of access_arschksu
+
+Procedure ACCESS_ARSBILLING
+Begin
+
+--Write ("%c%s%n",09001,"Processing ACCESS_ARSBILLING ..... ",L_COUNTER)
+
+/* house cleaning */
+L_CURRENT_DUE_DATE        = 00.00.0000
+L_CURRENT_AMOUNT          = 0.00
+L_NEXT_INSTALLMENT_AMOUNT = 0.00
+L_NEXT_DUE_DATE           = 00.00.0000
+L_PAST_DUE_DATE           = 00.00.0000
+L_PAST_DUE_AMOUNT         = 0.00
+L_FUTURE_AMOUNT           = 0.00
+L_FUTURE_DUE_DATE         = 00.00.0000
+
+Access ARSBILLING, Set ARSBILLING:COMPANY_ID = SFPNAME:COMPANY_ID,
+                       ARSBILLING:POLICY_NO  = SFPNAME:POLICY_NO, Approximate
+
+While ARSBILLING:COMPANY_ID = SFPNAME:COMPANY_ID And
+      ARSBILLING:POLICY_NO  = SFPNAME:POLICY_NO
+      Begin
+
+/* next installment information */
+         If (ARSBILLING:STATUS = "O" And
+             L_NEXT_DUE_DATE   = 00.00.0000) Or
+            (ARSBILLING:STATUS = "O" And
+             ARSBILLING:DUE_DATE = L_NEXT_DUE_DATE And
+             L_NEXT_DUE_DATE <> 00.00.0000) Then
+            Begin
+                L_NEXT_DUE_DATE = ARSBILLING:DUE_DATE
+                L_NEXT_INSTALLMENT_AMOUNT = (ARSBILLING:INSTALLMENT_AMOUNT -
+                ARSBILLING:TOTAL_AMOUNT_PAID ) - ARSBILLING:WRITE_OFF_AMOUNT
+            End
+
+/* current amount information */
+      If ARSBILLING:STATUS = "B" Then
+         Begin
+                L_CURRENT_DUE_DATE = ARSBILLING:DUE_DATE
+                L_CURRENT_AMOUNT = L_CURRENT_AMOUNT + (ARSBILLING:INSTALLMENT_AMOUNT
+                - ARSBILLING:TOTAL_AMOUNT_PAID) - ARSBILLING:WRITE_OFF_AMOUNT
+         End
+
+/* past due amount information */
+     If (ARSBILLING:STATUS = "B" And
+          ARSBILLING:DUE_DATE < TODAYSDATE ) Then
+     Begin
+         L_PAST_DUE_DATE = ARSBILLING:DUE_DATE
+         L_PAST_DUE_AMOUNT = L_PAST_DUE_AMOUNT + (ARSBILLING:INSTALLMENT_AMOUNT
+         - ARSBILLING:TOTAL_AMOUNT_PAID) - ARSBILLING:WRITE_OFF_AMOUNT
+     End
+
+/* future amount information */
+      If ARSBILLING:STATUS = "O" Then
+         Begin
+                If L_FUTURE_DUE_DATE <> 00.00.0000 Then
+                Begin
+                    If L_FUTURE_DUE_DATE > ARSBILLING:DUE_DATE Then
+                    Begin
+                    -- want to have the most recent due date stored not
+                    -- the oldest (when is the NEXT due date)
+                         L_FUTURE_DUE_DATE = ARSBILLING:DUE_DATE
+                    End
+                End
+                Else
+                Begin
+                    L_FUTURE_DUE_DATE = ARSBILLING:DUE_DATE
+                End
+                L_FUTURE_AMOUNT = L_FUTURE_AMOUNT + (ARSBILLING:INSTALLMENT_AMOUNT
+                - ARSBILLING:TOTAL_AMOUNT_PAID) - ARSBILLING:WRITE_OFF_AMOUNT
+         End
+
+     Next ARSBILLING
+
+     End
+
+End -- end of access_arsbilling
+
+Procedure ACCESS_ARSCHECK
+Begin
+
+--Write ("%c%s%n",09050,"Processing ACCESS_ARSCHECK ....... ",L_COUNTER)
+
+/* house cleaning */
+
+L_RETURN_PREMIUM_PAYTO_NAME   = ""
+L_RETURN_PREMIUM_CHECK_DATE   = 00.00.0000
+L_RETURN_PREMIUM_CHECK_AMOUNT = 0.00
+L_RETURN_PREMIUM_CHECK_NO     = ""
+
+Access ARSCHECK, Set ARSCHECK:COMPANY_ID = SFPNAME:COMPANY_ID,
+                     ARSCHECK:POLICY_NO  = SFPNAME:POLICY_NO, Approximate
+
+While ARSCHECK:COMPANY_ID = SFPNAME:COMPANY_ID And
+      ARSCHECK:POLICY_NO  = SFPNAME:POLICY_NO
+      Begin
+          If ARSCHECK:CHECK_DATE > L_RETURN_PREMIUM_CHECK_DATE And
+             ARSCHECK:RELEASE = "Y" Then
+             Begin
+                I_NAME = ARSCHECK:PAYEE_NAME[1]
+                Include "sfsrevname.pro"
+                L_RETURN_PREMIUM_PAYTO_NAME   = I_REV_NAME
+                L_RETURN_PREMIUM_CHECK_DATE   = ARSCHECK:CHECK_DATE
+                L_RETURN_PREMIUM_CHECK_AMOUNT = ARSCHECK:CHECK_AMOUNT
+                L_RETURN_PREMIUM_CHECK_NO     = Str(Val(ARSCHECK:CHECK_NO))
+             End
+      Next ARSCHECK
+      End
+
+End -- end of access_arscheck
+
+Procedure ACCESS_SFPSUPP
+Begin
+
+L_SFPNAME_LOOP_CTR = 0
+L_MORT_FOUND = "N"
+
+For L_CTR = 1 To 3
+Begin
+    L_MORT_NAME[L_CTR]    = ""
+    L_MORT_ADDRESS[L_CTR] = ""
+End
+
+L_MORT_CITY           = ""
+L_MORT_STATE          = ""
+L_MORT_ZIPCODE        = ""
+L_MORT_TYPE           = ""
+L_MORT_TELEPHONE      = ""
+L_PAYOR_NAME          = ""
+L_ACCOUNT_NO          = ""
+
+Access SFPNAME, Set SFPNAME:POLICY_NO    = SFPCURRENT:POLICY_NO,
+                    SFPNAME:POL_YEAR     = SFPCURRENT:POL_YEAR,
+                    SFPNAME:END_SEQUENCE = SFPCURRENT:END_SEQUENCE
+
+Access SFPSUPP, Set SFPSUPP:POLICY_NO    = SFPCURRENT:POLICY_NO,
+                    SFPSUPP:POL_YEAR     = SFPCURRENT:POL_YEAR,
+                    SFPSUPP:END_SEQUENCE = SFPCURRENT:END_SEQUENCE, Approximate
+
+While SFPSUPP:POLICY_NO = SFPCURRENT:POLICY_NO And
+      SFPSUPP:POL_YEAR  = SFPCURRENT:POL_YEAR And
+      L_MORT_FOUND  <> "Y"
+      Begin
+      If SFPSUPP:END_SEQUENCE = SFPCURRENT:END_SEQUENCE Then
+      {
+      If SFPSUPP:MORTGAGE_TYPE_1 One Of "B","C","F","M" Then
+      Begin
+
+      L_MORT_FOUND = "Y"
+      L_MORT_TYPE = SFPSUPP:MORTGAGE_TYPE_1
+
+      If SFPSUPP:MORTGAGE_ID = "" Then
+      Begin
+         For L_CTR = 1 To 3
+         Begin
+            L_MORT_NAME[L_CTR]    = SFPSUPP:NAME[L_CTR]
+            L_MORT_ADDRESS[L_CTR] = SFPSUPP:ADDRESS[L_CTR]
+         End
+         L_MORT_CITY              = SFPSUPP:CITY
+         L_MORT_STATE             = SFPSUPP:STR_STATE
+         L_MORT_ZIPCODE           = SFPSUPP:STR_ZIPCODE
+         L_MORT_TELEPHONE         = SFPSUPP:TELEPHONE[1]
+         L_ACCOUNT_NO             = SFPSUPP:ACCOUNT_NO
+      End  -- end of sfpsupp:mortgage_id = ""
+      Else -- sfpsupp:mortgage_id <> ""
+      Begin
+      L_COMPANY_ID  = SFPNAME:COMPANY_ID
+      L_MORTGAGE_ID = SFPSUPP:MORTGAGE_ID
+
+      Access SFSMORT, Set SFSMORT:COMPANY_ID  = L_COMPANY_ID,
+                          SFSMORT:MORTGAGE_ID = L_MORTGAGE_ID, Approximate
+      For L_CTR = 1 To 3
+      Begin
+         L_MORT_NAME[L_CTR]       = SFSMORT:NAME[L_CTR]
+         L_MORT_ADDRESS[L_CTR]    = SFSMORT:ADDRESS[L_CTR]
+      End
+      L_MORT_CITY                 = SFSMORT:CITY
+      L_MORT_STATE                = SFSMORT:STR_STATE
+      L_MORT_ZIPCODE              = SFSMORT:STR_ZIPCODE
+      L_MORT_TELEPHONE            = SFSMORT:TELEPHONE[1]
+      L_ACCOUNT_NO                = SFSMORT:ACCOUNT_NO
+      End -- end of sfsmort hit
+      End -- end of one of "B","C","F"
+      }   -- end of end sequence hit
+
+         Next SFPSUPP
+
+      End -- end of policy number hit on sfpsupp
+      If L_MORT_TYPE One Of "B","C","X","F" Then
+      Begin
+          L_PAYOR_NAME = L_MORT_NAME[1]
+      End
+      Else
+      Begin
+          I_NAME = SFPNAME:NAME[1]
+          Include "sfsrevname.pro"
+          L_PAYOR_NAME = I_REV_NAME
+      End
+End
+
+Procedure UPDATE_IVRMASTER
+Begin
+
+--Write ("%c%s%n",16001,"Processing UPDATE_IVRMASTER ...... ",L_COUNTER)
+
+Access IVRMASTER, Set IVRMASTER:COMPANY_ID = SFPNAME:COMPANY_ID,
+                      IVRMASTER:POLICY_NO  = SFPNAME:POLICY_NO, Exact
+
+If IVRMASTER:COMPANY_ID <> SFPNAME:COMPANY_ID Or
+   IVRMASTER:POLICY_NO  <> SFPNAME:POLICY_NO Then
+   Begin
+
+   Add IVRMASTER
+   Begin
+      IVRMASTER:COMPANY_ID                      = SFPNAME:COMPANY_ID/raw
+      IVRMASTER:POLICY_NO                       = SFPNAME:POLICY_NO
+      IVRMASTER:AGENT_NO                        = SFPNAME:AGENT_NO
+      IVRMASTER:PAYMENT_PLAN_STR                = L_PAYMENT_PLAN_STR
+      IVRMASTER:LINE_OF_BUSINESS_STR            = L_LINE_OF_BUSINESS_STR/raw
+      IVRMASTER:LAST_PAYMENT_AMOUNT             = L_LAST_CHECK_AMOUNT
+      IVRMASTER:LAST_PAYMENT_DATE               = L_LAST_PAYMENT_DATE
+      IVRMASTER:LAST_PAYMENT_CHECK_NO           = L_LAST_CHECK_NO/raw
+      IVRMASTER:NEXT_INSTALLMENT_DUE_DATE       = L_NEXT_DUE_DATE
+      IVRMASTER:NEXT_INSTALLMENT_AMOUNT         = L_NEXT_INSTALLMENT_AMOUNT
+      IVRMASTER:PAST_DUE_AMOUNT                 = L_PAST_DUE_AMOUNT
+      IVRMASTER:PAST_DUE_DUE_DATE               = L_PAST_DUE_DATE
+      IVRMASTER:CURRENT_AMOUNT_DUE              = L_CURRENT_AMOUNT
+      IVRMASTER:TOTAL_AMOUNT_DUE                = IVRMASTER:CURRENT_AMOUNT_DUE +
+                                                  IVRMASTER:PAST_DUE_AMOUNT
+      IVRMASTER:POLICY_STATUS                   = L_POLICY_STATUS/raw
+      IVRMASTER:EFF_DATE                        = L_EFF_DATE
+      IVRMASTER:EXP_DATE                        = L_EXP_DATE
+      IVRMASTER:RENEWAL_STATUS                  = L_RENEWAL_STATUS
+      IVRMASTER:RENEWAL_EFFECTIVE_DATE          = L_RENEWAL_EFF_DATE
+      IVRMASTER:RENEWAL_TRANS_DATE              = L_RENEWAL_TRANS_DATE
+      IVRMASTER:CANCELLATION_DATE               = L_CX_DATE
+      IVRMASTER:REINSTATED_DATE                 = L_REINSTATED_DATE
+      IVRMASTER:CANCELLATION_REASON             = L_CANCELLATION_REASON/raw
+      IVRMASTER:INSUREDS_NAME                   = L_INSURED_NAME/raw
+      IVRMASTER:INSUREDS_ZIPCODE                = L_ZIP_CODE
+      IVRMASTER:AGENT_NAME                      = L_AGENT_NAME/raw
+      IVRMASTER:AGENT_PHONE_NUMBER              = L_AGENT_PHONE_NUMBER/raw
+      IVRMASTER:RETURN_PREMIUM_PAYTO_NAME       = L_RETURN_PREMIUM_PAYTO_NAME
+      IVRMASTER:RETURN_PREMIUM_CHECK_DATE       = L_RETURN_PREMIUM_CHECK_DATE
+      IVRMASTER:RETURN_PREMIUM_CHECK_NO         = L_RETURN_PREMIUM_CHECK_NO/raw
+      IVRMASTER:RETURN_PREMIUM_CHECK_AMOUNT     = L_RETURN_PREMIUM_CHECK_AMOUNT
+      IVRMASTER:UNDERWRITER_NAME                = L_UNDERWRITER_NAME/raw
+      IVRMASTER:UNDERWRITER_EXTENSION           = L_UNDERWRITER_EXTENSION /raw
+      IVRMASTER:PREMIUM_PAYOR_NAME              = L_PAYOR_NAME /raw
+      IVRMASTER:MORTGAGEE_ACCOUNT_NUMBER        = L_ACCOUNT_NO /raw
+      IVRMASTER:PRIMARY_COVERAGE_LIMIT          = L_COVERAGE_A
+      IVRMASTER:MORTGAGEE_NAME                  = L_MORT_NAME[1]/raw
+      IVRMASTER:MORTGAGEE_ADDRESS               = L_MORT_ADDRESS[1]/raw
+      IVRMASTER:MORTGAGEE_CITY                  = L_MORT_CITY/raw
+      IVRMASTER:MORTGAGEE_ZIPCODE               = L_MORT_ZIPCODE /raw
+      IVRMASTER:MORTGAGEE_TELEPHONE             = L_MORT_TELEPHONE /raw
+   End  -- end of add
+   End  -- end of record exist checking
+
+End -- end of update_ivrmaster
+
+Procedure WRITE_IVROUT_FIELD_NAMES
+Begin
+
+  Writefile (L_IVROUT_FILE,"%s%s","company_id","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","POLICY Number","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","AGENT Number","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","PAYMENT PLAN","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","LINE OF BUSINESS","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","LAST PAYMENT AMOUNT","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","LAST PAYMENT DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","LAST PAYMENT CHECK Number","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","CURRENT DUE DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","CURRENT AMOUNT DUE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","NEXT INSTALLMENT DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","NEXT INSTALLMENT AMOUNT","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","PAST DUE AMOUNT","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","PAST DUE DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","TOTAL AMOUNT DUE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","POLICY STATUS","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","POLICY EFFECTIVE DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","POLICY EXPIRATION DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","POLICY RENEWAL STATUS","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RENEWAL EFFECTIVE DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RENEWAL TRANSACTION DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","CANCELLATION DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","REINSTATED DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","CANCELLATION REASON","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","INSUREDS NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","INSUREDS ZIPCODE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","AGENTS NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","AGENTS PHONE NUMBER","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RETURN PREMIUM PAYTO NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RETURN PREMIUM CHECK DATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RETURN PREMIUM CHECK NUMBER","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","RETURN PREMIUM CHECK AMOUNT","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","UNDERWRITER NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","UNDERWRITER EXTENSION","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","PREMIUM PAYOR NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE ACCOUNT NUMBER","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","PRIMARY COVERAGE LIMIT","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE NAME","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE ADDRESS","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE CITY","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE STATE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE ZIPCODE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s","MORTGAGEE TELEPHONE","<tab>")
+  Writefile (L_IVROUT_FILE,"%s","<nl>")
+
+End
+
+Procedure WRITE_IVROUT
+Begin
+
+/* delete the previous use of ivrout.txt
+Deletefile(L_IVROUT_FILE)
+
+/* create the empy ivrout.txt file here */
+If SFSCOMPANY:DEBUG_MODE One Of 1 Then
+Begin
+    Proc ("touch %s",L_IVROUT_FILE)
+End
+Else
+Begin
+    Proc ("touch %s",L_IVROUT_FILE)/noconsole
+End
+
+L_COMPANY_ID = ""
+L_MASTER_COUNTER = 0
+
+Access IVRMASTER, Set IVRMASTER:COMPANY_ID = L_COMPANY_ID, Approximate
+
+While IVRMASTER:ERRORNUMBER = 0
+Begin
+
+  L_MASTER_COUNTER = L_MASTER_COUNTER + 1
+
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:COMPANY_ID,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:POLICY_NO,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:AGENT_NO,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:PAYMENT_PLAN_STR,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:LINE_OF_BUSINESS_STR,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:LAST_PAYMENT_AMOUNT,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:LAST_PAYMENT_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:LAST_PAYMENT_CHECK_NO,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:CURRENT_DUE_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:CURRENT_AMOUNT_DUE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:NEXT_INSTALLMENT_DUE_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:NEXT_INSTALLMENT_AMOUNT,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:PAST_DUE_AMOUNT,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:PAST_DUE_DUE_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:TOTAL_AMOUNT_DUE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:POLICY_STATUS,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:EFF_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:EXP_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:RENEWAL_STATUS,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:RENEWAL_EFFECTIVE_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:RENEWAL_TRANS_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:CANCELLATION_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:REINSTATED_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:CANCELLATION_REASON,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:INSUREDS_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:INSUREDS_ZIPCODE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:AGENT_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:AGENT_PHONE_NUMBER,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:RETURN_PREMIUM_PAYTO_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%d%s",IVRMASTER:RETURN_PREMIUM_CHECK_DATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:RETURN_PREMIUM_CHECK_NO,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:RETURN_PREMIUM_CHECK_AMOUNT,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:UNDERWRITER_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:UNDERWRITER_EXTENSION,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:PREMIUM_PAYOR_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_ACCOUNT_NUMBER,"<tab>")
+  Writefile (L_IVROUT_FILE,"%n%s",IVRMASTER:PRIMARY_COVERAGE_LIMIT,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_NAME,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_ADDRESS,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_CITY,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_STATE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_ZIPCODE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s%s",IVRMASTER:MORTGAGEE_TELEPHONE,"<tab>")
+  Writefile (L_IVROUT_FILE,"%s","<nl>")
+
+  Next IVRMASTER
+
+End
+
+Closefile (L_IVROUT_FILE)
+
+End -- end of write_ivrout
+
+Procedure WRITE_IVRDONE
+Begin
+
+
+Deletefile (L_IVR_DONE)
+Writefile  (L_IVR_DONE,"%s","DONE<NL>")
+Closefile  (L_IVR_DONE)
+
+End
+
+Procedure WRITE_IVRLOG
+Begin
+
+    Writefile (L_IVR_LOG,"%s%s","User running update : ",USERNAME+"<NL><NL>")
+    Writefile (L_IVR_LOG,"%s%s","Number of Records on SFPCURRENT File : ",Str(L_COUNTER,"999999")+"<NL><NL>")
+    Writefile (L_IVR_LOG,"%s%s","Number of Records on IVRMASTER  File : ",Str(L_MASTER_COUNTER,"999999")+"<NL><NL>")
+    Writefile (L_IVR_LOG,"%s%s","Processing Complete at : ",Str(TODAYSDATE) + " " + Str(SYSTEMTIME)+"<NL>")
+    Closefile (L_IVR_LOG)
+--    Proc (":cli mail -s ivrup001 davep@scips.com < %s",Trun(L_IVR_LOG))
+--    Proc (":cli mail -s ivrup001 debbiep@scips.com < %s",Trun(L_IVR_LOG))
+--    Proc (":cli mail -s ivrup001 wlape@farmersofsalem.com < %s",Trun(L_IVR_LOG))
+
+End
+
+End

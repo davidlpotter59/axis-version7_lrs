@@ -1,0 +1,143 @@
+%%
+Screen
+        Name = "LRSNO001" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Notes - Ver 7.00     %m" ;
+        Domain = "LRSNOTES" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        global string g_company_id[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11],
+                                     g_sub_code[4] ;
+
+        Global rWdate G_trans_date_2 ;
+
+        Local Unsigned Ascii Number L_SUB_CODE[4],
+                                    l_sub[4] ;
+
+        Include "scipsprint.var"
+
+        Access LRSNOTES, Set lrsnotes:company_id = g_company_id,
+                             LRSNOTES:CLAIM_NO = G_CLAIM_no ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+disable(delete_fn)
+disable(change_fn)
+
+Access Validation
+If lrsnotes:company_id <> g_company_id or
+   LRSNOTES:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000 ;
+
+screen at 2,1 to 19, 81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company ID:  ___________  __________________________________________________ |
+| Claim No:    ___________                                                     |
+| Trans Date:  __________                                                      |
+*------------------------------------------------------------------------------*
+|         ____________________________________________________________         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+101     FUNCTION/noecho/showasguidetext;
+301     begin
+        if function one of "ADD" then
+            lrsnotes:company_id = g_company_Id
+        end
+        lrsnotes:company_id/default
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     Begin
+        If FUNCTION one of "ADD" Then
+            LRSNOTES:CLAIM_NO = G_CLAIM_NO
+        End
+        LRSNOTES:CLAIM_NO/displayonly   Mandatory ;
+501     Begin
+        If FUNCTION one of "ADD" Then
+            LRSNOTES:trans_date_1 = TODAYSDATE
+        End
+        LRSNOTES:trans_date_1/displayonly Mandatory ;
+701     Begin
+        If FUNCTION one of "ADD" Then
+            Do SUBCODE
+        End
+        LRSNOTES:NOTES/freetextlines=11;
+
+} -- end of screen panel
+
+Procedure Definition
+
+Procedure SUBCODE
+Begin
+Access lrsnotes_alias, Set lrsnotes_alias:company_id   = lrsnotes:company_id,
+                           lrsnotes_alias:CLAIM_NO     = LRSNOTES:CLAIM_NO,
+                           lrsnotes_alias:trans_date_1 = LRSNOTES:trans_date_1, Approximate
+
+l_sub_code = 0
+while lrsnotes_alias:company_id   = lrsnotes:company_id and
+      lrsnotes_alias:CLAIM_NO     = LRSNOTES:CLAIM_NO and
+      lrsnotes_alias:trans_date_1 = LRSNOTES:trans_date_1
+        begin
+        L_SUB_CODE = lrsnotes_alias:SUB_CODE
+
+        Next lrsnotes_alias
+        End
+
+LRSNOTES:SUB_CODE = L_SUB_CODE + 10
+End
+
+Procedure SCIPS_MACRO
+Begin
+
+I_SCIPS_SELECT = "Y"
+
+If I_SCIPS_SELECT = "Y" Then
+    Begin
+    I_SCIPS_PARAM_NAME = Lowercase(Trun(PROGRAMID)) + Trun(Str(PID)) + ".par"
+    Writefile(I_SCIPS_PARAM_NAME,"%n<nl>",LRSNOTES:CLAIM_NO)
+    End
+
+Include "scipsprint.pro"
+
+End

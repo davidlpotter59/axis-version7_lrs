@@ -1,0 +1,1265 @@
+%%
+Screen
+        Name = "LRSIN001" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize="dynamic" ;
+        Windowtitle = "%a,     %s Claim Setup and Maintenance - Ver. 7.11     %m" ;
+        Domain = "LRSSETUP" ;
+--        resizeable = YES ;
+        iconline=0;
+
+        Global String G_COMPANY_ID[10],
+                      G_CLAIMANT[50],
+                      G_YESNO[1] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_SUB_CODE[4] ,
+                                     G_POLICY_NO[9],
+                                     G_PUB_ADJUST_NO[4],
+                                     G_CAT_NO[5] ,
+                                     G_YEAR[4],
+                                     G_END_SEQUENCE[4],
+                                     g_vendor_no[5] ;
+
+        Global Signed Ascii Number G_AMOUNT[8],
+                                   G_ULAE[8],
+                                   G_ALAE[8] ;
+
+        Global Date G_LOSS_DATE[8] ;
+
+        global unsigned ascii number g_claim_setup[1] ;
+
+        global YYYYMMDD Date g_calendar_date[8] ;
+
+        Local Unsigned Ascii Number L_PRSMASTER_SUBCODE[2],
+                                    L_VENDOR_NO[5],
+                                    L_PRIOR_VENDOR_NO[5] ,
+                                    L_YEAR[4],
+                                    l_pending[2]=0,
+                                    L_END_SEQUENCE[4] ,
+                                    L_ALLOW_THEM_TO_CHANGE[1]=0,
+                                    L_STATE[2],
+                                    L_TRANS_TYPE[2]=01,
+                                    L_DRIVER_SUB_CODE[4]=0,
+                                    L_SUB_CODE[4]=0,
+                                    L_HOLD_LOB[4]=0,
+                                    L_HOLD_CAUSE_LOSS[4]=0,
+                                    l_abort_program[1]=0,
+                                    L_SUMMARY_SUB_CODE[4]=0/decimals=0;
+
+        Local String L_NAME[30],
+                     L_SEARCH_NAME[50] ,
+                     L_DRIVER[50] ,
+                     l_pending_payment[18],
+                     l_dec[15],
+                     L_LOCATION[9],
+                     L_VEHICLE[1],
+                     L_VALID_POLICY[1]="N",
+                     L_PROP[1],
+                     L_STATUS_2[22],
+                     L_DESC[64],
+                     L_LRSSUMMARY_STATUS[1]="O",
+                     L_INSURDED[10] ,
+                     L_REIN_COMPANY_ID[10]="",
+                     L_CANCELLED[1] ,
+                     L_REINS_OUTFILE[15],
+                     L_COMMANDLINE[21]="",
+                     L_HOLD_LOB_SUBLINE[2]="" ,
+                     L_HOLD_CAUSE_SUBLINE[2]="",
+                     l_system_id[15] = "",
+                     l_continue[100] = "",
+                     l_continue_1[3]="";
+
+        Include "create_reserve.var"
+
+        Include "sfscsexec.var"
+
+        Include "scipsprint.var"
+
+        include "virtualdecs.var"
+
+        Access LRSSETUP, Set LRSSETUP:policy_no = g_policy_no, using second index, generic ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        "Summary" display "lrsin010"  tagged summary_fn ;
+        "Notes"   display "lrsno001"  tagged notes_fn ;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+        include "stdblanktoolbar7.inc"
+
+}
+
+Toolbar Tagged Checks_t Properties
+                                  {
+                                      Text     = "Summary"
+                                         FontName = "SansSerif"
+                                         Fontsize = 10
+                                  }
+                        {
+                     ToolBarButton
+                                  Properties
+                                  {
+                                 Iconname   = "calc.bmp"
+                                  }
+                                  Events
+                                  {
+                                         Action    = summary_fn
+                                  }
+                         }
+
+Toolbar Tagged notes_t Properties
+                                  {
+                                      Text     = "Notes"
+                                         FontName = "SansSerif"
+                                         Fontsize = 10
+                                  }
+                        {
+                     ToolBarButton
+                                  Properties
+                                  {
+                                 Iconname   = "notes.bmp"
+                                  }
+                                  Events
+                                  {
+                                         Action    = notes_fn
+                                  }
+                         }
+
+
+Screen Entry
+
+if g_claim_no = 0 and
+   lrssetup:claim_no <> 0 then
+   {
+       g_claim_no = lrssetup:claim_no
+   }
+
+disable(delete_fn)
+disable(add_fn)
+disable(change_fn)
+
+if g_claim_no = 0 then
+{
+    disable(notes_fn)
+}
+
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                     SFSEMAIL:USER_ID = L_USERNAME, Generic
+
+Access Validation
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                     SFSEMAIL:USER_ID = L_USERNAME, Generic
+
+Skip when SFSEMAIL:TPA = "Y" And
+          SFSLINE:TPA = "N" ;
+
+screen at 2,1 to 20,100
+Properties
+        {
+        LayoutType = Column
+        }
+{
+Panel Tagged Header_pl
+Properties
+        {
+        Borderstyle     = Raised
+        ScrollBarPolicy = asneeded
+        }
+{
+%%
+                                                        _______________
+*---------------------------------------------------------------------------------*
+| Company ID:         __________ _______________________________________________  |
+| Date of Loss:       __________ Status: ______________________ Date: __________  |
+| Claim Received:     __________ Non-SCIPS Policy: _                              |
+| Policy No:          _________  _______________________________________________  |
+| Agent No:           ____       _______________________________________________  |
+| Line of Business:   ____  ___  _______________________________________________  |
+| Cause of Loss:      ____  ___  _______________________________________________  |
+| Condition:          __  ____________________                                    |
+| Comments:           __________________________________________________          |
+| Non-SCIPS Claim No: __________                                                  |
+| Claim No:           ___________^                                                |
+| __________          __________________________________________________________  |
+| __________          __________________________________________________________  |
+| Driver:             __________________________________________________________  |
+*---------------------------------------------------------------------------------*
+|                                 __________________                              |
+*---------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+101     FUNCTION/noecho/showasguidetext;
+301     LRSSETUP:COMPANY_ID/displayonly ;
+302     Trun(SFSCOMPANY:NAME[1]) ;
+
+401     LRSSETUP:LOSS_DATE/displayonly ;
+501     LRSSETUP:REPORTED_DATE/displayonly ;
+601     LRSSETUP:POLICY_NO/displayonly ;
+502     LRSSETUP:IDP_POLICY/checkbox/values="N,Y"/displayonly;
+
+602     LRSSETUP:NAME_SEARCH/displayonly ;
+601     LRSSETUP:POLICY_NO/displayonly ;
+
+701     LRSSETUP:AGENT_NO/displayonly ;
+702     Trun(SFSAGENT:NAME[1])/displayonly;
+
+402     Begin
+        Switch(LRSSETUP:STATUS_2)
+          Case 1  : L_STATUS_2 = "Closed With Payment"
+          Case 2  : L_STATUS_2 = "Closed without Payment"
+          Default : L_STATUS_2 = If LRSSETUP:STATUS = "X" Then
+                                     "Claim is Invalid"
+                                 Else
+                                 if lrssetup:status = "Z" then
+                                     "Policy is Cancelled"
+                                 else
+                                 if lrssetup:status = "R" then
+                                     "Claim is Reopened"
+                                 else
+                                     "Claim is Open"
+          End
+        End
+        L_STATUS_2/displayonly ;
+403     LRSSETUP:STATUS_DATE/displayonly ;
+
+801     LRSSETUP:LINE_OF_BUSINESS/displayonly ;
+802     LRSSETUP:LOB_SUBLINE/displayonly ;
+803     SFSLINE_ALIAS:DESCRIPTION;
+
+901     LRSSETUP:CAUSE_OF_LOSS/displayonly ;
+902     LRSSETUP:CAUSE_LOSS_SUBLINE/displayonly ;
+903     SFSCAUSE2:DESCRIPTION ;
+
+1001    LRSSETUP:CONDITION/displayonly ;
+1002    SFSCONDITION:DESCRIPTION;
+
+1101    LRSSETUP:COMMENTS/displayonly ;
+1201    LRSSETUP:OTHER_SYSTEM_CLAIM_NUMBER/displayonly ;
+
+1301    LRSSETUP:CLAIM_NO/displayonly ;
+1302    SFSLINE:CLAIM_ALPHA ;
+
+1401    Begin
+        Access SFSCAUSE, Set SFSCAUSE:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                             SFSCAUSE:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS ,
+                             SFSCAUSE:LOB_SUBLINE = LRSSETUP:LOB_SUBLINE ,
+                             SFSCAUSE:CAUSE_OF_LOSS = LRSSETUP:CAUSE_OF_LOSS ,
+                             SFSCAUSE:CAUSE_LOSS_SUBLINE = LRSSETUP:CAUSE_LOSS_SUBLINE , Generic
+
+        If SFSCAUSE:LINE_TYPE not one of "W", "L" Then
+            L_INSURDED = "Insured"
+        Else
+            L_INSURDED = "Claimant"
+        End
+        L_INSURDED/displayonly/showasguidetext ;
+1402    LRSSETUP:CLAIMANT/displayonly/uppercase ;
+
+1501    Begin
+        Switch(SFSLINE:BUSINESS_TYPE)
+          Case "A" : Begin
+                     L_LOCATION = "Vehicle"
+                     L_VEHICLE = "Y"
+                     End
+          Default  : Begin
+                     L_LOCATION = "Location"
+                     L_PROP = "O"
+                     End
+          End
+        End
+        L_LOCATION/displayonly/showasguidetext ;
+
+--   if claim is an commercial auto claim
+1502    Begin
+        Access CAPVEHICLE_ALIAS, Set CAPVEHICLE_ALIAS:POLICY_NO = LRSSETUP:POLICY_NO,
+                                     CAPVEHICLE_ALIAS:POL_YEAR = LRSSETUP:POL_YEAR,
+                                     CAPVEHICLE_ALIAS:END_SEQUENCE = LRSSETUP:END_SEQUENCE, generic
+
+        Access LRSLOCATION, Set LRSLOCATION:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                                LRSLOCATION:CLAIM_NO = LRSSETUP:CLAIM_NO, Generic
+
+        If LRSLOCATION:COMPANY_ID = LRSSETUP:COMPANY_ID And
+           LRSLOCATION:CLAIM_NO = LRSSETUP:CLAIM_NO Then
+            Begin
+            L_DESC = LRSLOCATION:DESCRIPTION
+            End
+        Else
+            Begin
+            If LRSSETUP:VEHICLE_NO <> 0 Then
+                Begin
+                Access CAPVEHICLE_ALIAS, Set CAPVEHICLE_ALIAS:POLICY_NO = LRSSETUP:POLICY_NO,
+                                             CAPVEHICLE_ALIAS:POL_YEAR = LRSSETUP:POL_YEAR,
+                                             CAPVEHICLE_ALIAS:END_SEQUENCE = LRSSETUP:END_SEQUENCE,
+                                             CAPVEHICLE_ALIAS:VEHICLE_NO = LRSSETUP:VEHICLE_NO, Generic
+
+                L_DESC = Trun(CAPVEHICLE_ALIAS:MAKE + " " + CAPVEHICLE_ALIAS:SERIAL_NO)
+                End
+            Else
+                Begin
+                L_DESC = "Vehicle Not Listed"
+                End
+            End
+        End
+        L_DESC/displayonly
+        hide when L_VEHICLE <> "Y" ;
+
+1502    Begin
+        Access LRSLOCATION, Set LRSLOCATION:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                                LRSLOCATION:CLAIM_NO = LRSSETUP:CLAIM_NO, Generic
+
+        If LRSLOCATION:COMPANY_ID = LRSSETUP:COMPANY_ID And
+           LRSLOCATION:CLAIM_NO = LRSSETUP:CLAIM_NO Then
+            Begin
+            L_DESC = LRSLOCATION:DESCRIPTION
+            L_ALLOW_THEM_TO_CHANGE = LRSLOCATION:ALLOW_THEM_TO_CHANGE
+            End
+        Else
+            Begin
+            Access SFPLOCATION, Set SFPLOCATION:POLICY_NO = LRSSETUP:POLICY_NO ,
+                                    SFPLOCATION:POL_YEAR  = LRSSETUP:POL_YEAR  ,
+                                    SFPLOCATION:END_SEQUENCE = LRSSETUP:END_SEQUENCE ,
+                                    SFPLOCATION:PREM_NO = LRSSETUP:PREM_NO,
+                                    SFPLOCATION:BUILD_NO = LRSSETUP:BUILD_NO , Generic
+
+            L_DESC = Trun(SFPLOCATION:ADDRESS) + " " +
+                     Trun(SFPLOCATION:CITY) + " " +
+                     Trun(SFPLOCATION:STR_STATE)
+            LRSSETUP:STATE = SFPLOCATION:STATE
+            l_allow_them_to_change = 0
+            End
+        End
+        l_desc/displayonly
+        hide when L_VEHICLE <> "N" ;
+
+1601    Begin
+            L_DRIVER = LRSDRIVER:NAME
+        End
+        L_DRIVER/displayonly
+        hide when L_VEHICLE <> "Y" ;
+
+} -- end of Header_pl
+
+CardDialog GUI at 1,1
+Properties    {
+              LayOutConstraints = Stretch
+              }
+{
+Panel
+Properties    {
+              ScrollBarPolicy=asneeded
+              Text               = "&Examiner"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Examiner:         _____  ___________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+
+Components
+
+Fields
+-- Examinor
+0301    LRSSETUP:VENDOR_NO[1]/displayonly ;
+0302    begin
+        l_vendor_no = lrssetup:vendor_no[1]
+        Access SFSVENDOR, Set SFSVENDOR:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                              SFSVENDOR:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR:NAME[1] ;
+
+} -- end of Examiner Panel
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&Adjustor"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Adjuster:         _____  ___________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+
+Components
+
+Fields
+
+0301    LRSSETUP:VENDOR_NO[2]/displayonly ;
+0302    begin
+        l_vendor_no = lrssetup:vendor_no[2]
+        Access SFSVENDOR1, Set SFSVENDOR1:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR1:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR1:NAME[1]/displayonly ;
+
+} -- end of Adjustor Panel
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&Coverage"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Coverage Opinion: _  _____  ________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+-- Coverage Opinion
+0301    lrssetup:coverage_option/checkbox/values="N,Y"/displayonly ;
+0302    LRSSETUP:VENDOR_NO[5]/displayonly ;
+0303    begin
+        l_vendor_no = lrssetup:vendor_no[5]
+        Access SFSVENDOR4, Set SFSVENDOR4:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR4:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR4:NAME[1] ;
+
+} -- end of Coverage Opinion
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&Litigation"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Litigation:     _  _____  ________________________________________________   |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+-- litigation
+0301    lrssetup:litigation/checkbox/values="N,Y"/displayonly ;
+0302    LRSSETUP:VENDOR_NO[3]/displayonly ;
+0303    begin
+        l_vendor_no = lrssetup:vendor_no[3]
+        Access SFSVENDOR2, Set SFSVENDOR2:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR2:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR2:NAME[1]/displayonly ;
+
+}
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&DJ"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| DJ:     _  _____  ________________________________________________           |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+0301    lrssetup:dj/checkbox/values="N,Y"/displayonly ;
+0302    LRSSETUP:VENDOR_NO[4]/displayonly ;
+0303    begin
+        l_vendor_no = lrssetup:vendor_no[4]
+        Access SFSVENDOR3, Set SFSVENDOR3:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR3:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR3:NAME[1]/displayonly ;
+
+} -- end of DJ
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&Plaintiff Atty"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Plaintiff Atty:   _  _____  ________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+0301    lrssetup:plantiff/checkbox/values="0,1"/displayonly ;
+0302    LRSSETUP:PLANTIFF_VENDOR/displayonly ;
+0303    begin
+        l_vendor_no = lrssetup:plantiff_vendor
+        Access SFSVENDOR1, Set SFSVENDOR6:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR6:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR6:NAME[1]/displayonly ;
+
+} -- end of Plaintiff Atty
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "&Subro / Salvage"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Subro/Salvage:   _  _____  ________________________________________________  |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+
+0301    lrssetup:subro_sal/checkbox/values="N,Y"/displayonly ;
+0302    LRSSETUP:VENDOR_NO[6]/displayonly ;
+0303    begin
+        L_VENDOR_NO = LRSSETUP:VENDOR_NO[6]
+        Access SFSVENDOR5, Set SFSVENDOR5:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                               SFSVENDOR5:VENDOR_NO = L_VENDOR_NO ,Generic
+        end
+        SFSVENDOR5:NAME[1]/displayonly ;
+
+} -- end of Subro / Salvage
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "C&AT"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Cat No: _  _____  ________________________________________________           |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+0301    lrssetup:cat/checkbox/values="0,1"/displayonly ;
+0302    LRSSETUP:CAT_NO/displayonly ;
+0303    LRSCAT:DESCRIPTION/displayonly ;
+
+} -- end of CAT
+
+Panel GUI at 1,1
+Properties    {
+              ScrollBarPolicy    = asneeded
+              Text               = "P&ublic Adjustor"
+              }
+{
+%%
+
+*------------------------------------------------------------------------------*
+| Public Adjuster:  _  _____  __________ _____________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+Components
+
+Fields
+0301    lrssetup:pa/checkbox/values="N,Y"/displayonly ;
+0302    LRSSETUP:PUB_ADJUST_NO/displayonly ;
+0303    LRSSETUP:PUB_ADJUST_DATE/displayonly ;
+0304    trun(LRSPUBADJ:NAME[1])/displayonly ;
+
+} -- end of Public Adjustor
+
+}
+
+}-- end of the complete screen including card dialogs and header panel
+
+Postupdate
+Begin
+If Abort    = "NO" And
+   UPDATEOK = "YES"  Then
+    Begin
+    If FUNCTION = "CHANGE" Then
+        Begin
+        If L_HOLD_LOB           <> LRSSETUP:LINE_OF_BUSINESS Or
+           L_HOLD_LOB_SUBLINE   <> LRSSETUP:LOB_SUBLINE Or
+           L_HOLD_CAUSE_LOSS    <> LRSSETUP:CAUSE_OF_LOSS Or
+           L_HOLD_CAUSE_SUBLINE <> LRSSETUP:CAUSE_LOSS_SUBLINE Then
+            Begin
+            Warning "You are about to change detail records, are you sure you wish to do this, press CANCEL to continue"
+            If Abort = "NO" Then
+                Begin
+                Do CHANGE_LRSDETAIL
+                End
+            Else
+                FUNCTION = "abort"
+            End
+
+        End
+
+        If FUNCTION = "ADD" Then
+            Begin
+            -- to increment claim counter
+            Do UPDATE_SFPNAME
+
+            -- setup reserves, allow them to do this even if invalid policy or
+            -- policy cancelled, they can put zero's in the fields if they do
+            -- not want to setup reserves
+
+            G_COMPANY_ID = LRSSETUP:COMPANY_ID
+            G_CLAIM_NO = LRSSETUP:CLAIM_NO
+            Display Modal Screen "lrsmt01b"
+            With Initial Function "Change|Back"
+            Do CREATE_RESERVE
+            If SFSLINE_ALIAS:LOB_CODE Not One Of "BOILER" Then
+                Do PROCESS_REINSURANCE
+            End
+
+    FUNCTION = "redisplay"
+    End
+
+End
+
+Screen Exit
+If LRSSETUP:COMPANY_ID > "" Then G_COMPANY_ID = LRSSETUP:COMPANY_ID ;
+If LRSSETUP:CLAIM_NO   > 0  Then G_CLAIM_NO   = LRSSETUP:CLAIM_NO ;
+If LRSSETUP:POLICY_NO  > 0  Then G_POLICY_NO  = LRSSETUP:POLICY_NO ;
+
+Procedure Definition
+
+Procedure CREATE_RESERVE
+Begin
+Access LRSRESV, Set LRSRESV:COMPANY_ID          = LRSSETUP:COMPANY_ID,
+                    LRSRESV:LINE_OF_BUSINESS    = LRSSETUP:LINE_OF_BUSINESS,
+                    LRSRESV:LOB_SUBLINE         = LRSSETUP:LOB_SUBLINE ,
+                    LRSRESV:CAUSE_OF_LOSS       = LRSSETUP:CAUSE_OF_LOSS,
+                    LRSRESV:CAUSE_LOSS_SUBLINE  = LRSSETUP:CAUSE_LOSS_SUBLINE, Generic
+
+While LRSRESV:COMPANY_ID         = LRSSETUP:COMPANY_ID And
+      LRSRESV:LINE_OF_BUSINESS   = LRSSETUP:LINE_OF_BUSINESS And
+      LRSRESV:LOB_SUBLINE        = LRSSETUP:LOB_SUBLINE And
+      LRSRESV:CAUSE_OF_LOSS      = LRSSETUP:CAUSE_OF_LOSS And
+      LRSRESV:CAUSE_LOSS_SUBLINE = LRSSETUP:CAUSE_LOSS_SUBLINE
+        Begin
+        L_CASE_AMOUNT = LRSRESV:CASE_AMOUNT
+        L_LAE_AMOUNT  = LRSRESV:LAE_AMOUNT
+        L_ULAE        = LRSRESV:ULAE
+        L_ALAE        = LRSRESV:ALAE
+
+        Next LRSRESV
+        End
+
+Do LRSDETAIL_SUBCODE
+
+-- setup loss resv
+L_VENDOR = 0
+L_ULAE   = "N"
+L_ALAE   = "N"
+If G_YESNO = "Y" Then
+    L_RESV = L_CASE_AMOUNT
+Else
+    L_RESV = G_AMOUNT
+Do SETUP_LRSDETAIL
+
+-- setup alae resv
+If G_ALAE > 0 Then
+    Begin
+    L_VENDOR = LRSSETUP:VENDOR_NO[2]
+    L_ALAE = "Y"
+    L_ULAE = "N"
+    L_RESV = G_ALAE
+    Do LRSDETAIL_SUBCODE
+    Do SETUP_LRSDETAIL
+    End
+
+-- setup ulae resv
+If G_ULAE > 0 Then
+    Begin
+    L_VENDOR = LRSSETUP:VENDOR_NO[2]
+    L_ULAE = "Y"
+    L_ALAE = "N"
+    L_RESV = G_ULAE
+    Do LRSDETAIL_SUBCODE
+    Do SETUP_LRSDETAIL
+    End
+
+If G_YESNO = "Y" Then
+    L_RESV = L_CASE_AMOUNT
+Else
+    L_RESV = G_AMOUNT
+Do LRSSUMMARY_SUBCODE
+Do SETUP_LRSSUMMARY
+
+If SFSCAUSE:LINE_TYPE not one of "W", "L" Then
+    Begin
+    Do LRSCMNT_SUBCODE
+    Do SETUP_LRSCMNT
+    End
+
+End
+
+Procedure LRSDETAIL_SUBCODE
+Begin
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                      LRSDETAIL:CLAIM_NO   = LRSSETUP:CLAIM_NO, Generic
+
+L_DETAIL_SUB_CODE = 0
+While LRSDETAIL:COMPANY_ID = LRSSETUP:COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = LRSSETUP:CLAIM_NO
+        Begin
+
+        L_DETAIL_SUB_CODE = LRSDETAIL:SUB_CODE
+
+        Next LRSDETAIL
+        End
+
+L_DETAIL_SUB_CODE = L_DETAIL_SUB_CODE + 10
+End
+
+Procedure SETUP_LRSDETAIL
+Begin
+Add LRSDETAIL
+    Begin
+    LRSDETAIL:COMPANY_ID                =       LRSSETUP:COMPANY_ID/raw
+    LRSDETAIL:CLAIM_NO                  =       LRSSETUP:CLAIM_NO
+    LRSDETAIL:SUB_CODE                  =       L_DETAIL_SUB_CODE
+    LRSDETAIL:TRANS_DATE                =       TODAYSDATE
+    LRSDETAIL:BATCH                     =       1
+    LRSDETAIL:USER_ID                   =       USERNAME/raw
+    LRSDETAIL:SYSTEM_DATE               =       TODAYSDATE
+    LRSDETAIL:MISC                      =       "INITAL RESERVE SETUP"/raw
+    LRSDETAIL:LINE_OF_BUSINESS          =       LRSSETUP:LINE_OF_BUSINESS
+    LRSDETAIL:LOB_SUBLINE               =       LRSSETUP:LOB_SUBLINE/raw
+    LRSDETAIL:CAUSE_OF_LOSS             =       LRSSETUP:CAUSE_OF_LOSS
+    LRSDETAIL:CAUSE_LOSS_SUBLINE        =       LRSSETUP:CAUSE_LOSS_SUBLINE/raw
+    LRSDETAIL:SUMMARY_SUB_CODE          =       L_SUMMARY_SUB_CODE
+    LRSDETAIL:VENDOR_NO                 =       L_VENDOR
+    LRSDETAIL:TRANS_CODE                =       16
+    LRSDETAIL:REINS_CO                  =       0
+    If L_ULAE = "N" And
+       L_ALAE = "N" Then
+        LRSDETAIL:LOSS_RESV             =       L_RESV
+    If L_ULAE = "Y" Or
+       L_ALAE = "Y" Then
+        LRSDETAIL:LAE_RESV              =       L_RESV
+    LRSDETAIL:ULAE                      =       L_ULAE
+    LRSDETAIL:ALAE                      =       L_ALAE
+    LRSDETAIL:SUBRO                     =       "N"
+    LRSDETAIL:SALVAGE                   =       "N"
+    lrsdetail:expansion                 =       ""/raw
+    End
+
+End
+
+Procedure SETUP_LRSSUMMARY
+Begin
+Add LRSSUMMARY
+    Begin
+    LRSSUMMARY:COMPANY_ID               =       LRSSETUP:COMPANY_ID/raw
+    LRSSUMMARY:CLAIM_NO                 =       LRSSETUP:CLAIM_NO
+    LRSSUMMARY:LINE_OF_BUSINESS         =       LRSSETUP:LINE_OF_BUSINESS
+    LRSSUMMARY:LOB_SUBLINE              =       LRSSETUP:LOB_SUBLINE/raw
+    LRSSUMMARY:CAUSE_OF_LOSS            =       LRSSETUP:CAUSE_OF_LOSS
+    LRSSUMMARY:CAUSE_LOSS_SUBLINE       =       LRSSETUP:CAUSE_LOSS_SUBLINE/raw
+    LRSSUMMARY:TRANS_TYPE               =       L_TRANS_TYPE
+    LRSSUMMARY:SUB_CODE                 =       L_SUMMARY_SUB_CODE
+    LRSSUMMARY:CLAIMANT                 =       LRSSETUP:CLAIMANT/raw
+    LRSSUMMARY:LOSS_RESV                =       L_RESV
+    LRSSUMMARY:LOSS_PAID                =       0
+    LRSSUMMARY:ULAE_RESV                =       G_ULAE
+    LRSSUMMARY:ULAE_PAID                =       0
+    LRSSUMMARY:ALAE_RESV                =       G_ALAE
+    LRSSUMMARY:ALAE_PAID                =       0
+    LRSSUMMARY:TRANS_DATE               =       TODAYSDATE
+    LRSSUMMARY:TRANS_CODE               =       16
+    LRSSUMMARY:COMMENTS                 =       "Setup Reserve"/raw
+    LRSSUMMARY:AMOUNT                   =       L_RESV
+    LRSSUMMARY:REINS_CO                 =       0
+    LRSSUMMARY:STATUS                   =       L_LRSSUMMARY_STATUS
+    LRSSUMMARY:STATUS_DATE              =       TODAYSDATE
+    LRSSUMMARY:EXPANSION                =       ""/raw
+    End
+
+End
+
+Procedure LRSSUMMARY_SUBCODE
+Begin
+Access LRSSUMMARY_ALT, Set LRSSUMMARY_ALT:COMPANY_ID         = LRSSETUP:COMPANY_ID,
+                           LRSSUMMARY_ALT:LINE_OF_BUSINESS   = LRSSETUP:LINE_OF_BUSINESS,
+                           LRSSUMMARY_ALT:LOB_SUBLINE        = LRSSETUP:LOB_SUBLINE,
+                           LRSSUMMARY_ALT:CLAIM_NO           = LRSSETUP:CLAIM_NO,
+                           LRSSUMMARY_ALT:CAUSE_OF_LOSS      = LRSSETUP:CAUSE_OF_LOSS,
+                           LRSSUMMARY_ALT:CAUSE_LOSS_SUBLINE = LRSSETUP:CAUSE_LOSS_SUBLINE,
+                           LRSSUMMARY_ALT:TRANS_TYPE         = L_TRANS_TYPE, Approximate
+
+L_SUMMARY_SUB_CODE = 0
+While LRSSUMMARY_ALT:COMPANY_ID         = LRSSETUP:COMPANY_ID And
+      LRSSUMMARY_ALT:CLAIM_NO           = LRSSETUP:CLAIM_NO And
+      LRSSUMMARY_ALT:LINE_OF_BUSINESS   = LRSSETUP:LINE_OF_BUSINESS And
+      LRSSUMMARY_ALT:LOB_SUBLINE        = LRSSETUP:LOB_SUBLINE And
+      LRSSUMMARY_ALT:CAUSE_OF_LOSS      = LRSSETUP:CAUSE_OF_LOSS And
+      LRSSUMMARY_ALT:CAUSE_LOSS_SUBLINE = LRSSETUP:CAUSE_LOSS_SUBLINE And
+      LRSSUMMARY_ALT:TRANS_TYPE         = L_TRANS_TYPE
+        Begin
+        L_SUMMARY_SUB_CODE = LRSSUMMARY_ALT:SUB_CODE + 10
+
+        Next LRSSUMMARY_ALT
+        End
+
+L_SUMMARY_SUB_CODE = L_SUMMARY_SUB_CODE + 10
+End
+
+Procedure SETUP_LRSCMNT
+Begin
+Add LRSCMNT
+    Begin
+    LRSCMNT:COMPANY_ID          =       LRSSETUP:COMPANY_ID
+    LRSCMNT:CLAIM_NO            =       LRSSETUP:CLAIM_NO
+    LRSCMNT:SUB_CODE            =       L_CMNT_SUB_CODE
+    If SFSCAUSE:LINE_TYPE not one of "W", "L" Then
+        Begin
+        LRSCMNT:NAME[1]         =       SFPNAME:NAME[1]
+        LRSCMNT:NAME[2]         =       SFPNAME:NAME[2]
+        LRSCMNT:NAME[3]         =       SFPNAME:NAME[3]
+        LRSCMNT:ADDRESS[1]      =       SFPNAME:ADDRESS[1]
+        LRSCMNT:ADDRESS[2]      =       SFPNAME:ADDRESS[2]
+        LRSCMNT:ADDRESS[3]      =       SFPNAME:ADDRESS[3]
+        LRSCMNT:CITY            =       SFPNAME:CITY
+        LRSCMNT:STR_STATE       =       SFPNAME:STR_STATE
+        LRSCMNT:STR_ZIPCODE     =       SFPNAME:STR_ZIPCODE
+        End
+    Else
+        LRSCMNT:NAME[1]         =       LRSSETUP:CLAIMANT
+    End
+
+End
+
+Procedure LRSCMNT_SUBCODE
+Begin
+Access LRSCMNT, Set LRSCMNT:COMPANY_ID = LRSSETUP:COMPANY_ID ,
+                    LRSCMNT:CLAIM_NO   = LRSSETUP:CLAIM_NO , Generic
+
+L_CMNT_SUB_CODE = 0
+While LRSCMNT:COMPANY_ID = LRSSETUP:COMPANY_ID And
+      LRSCMNT:CLAIM_NO   = LRSSETUP:CLAIM_NO
+        Begin
+        L_CMNT_SUB_CODE = LRSCMNT:SUB_CODE
+
+        Next LRSCMNT
+        End
+
+L_CMNT_SUB_CODE = L_CMNT_SUB_CODE + 10
+End
+
+Procedure CHANGE_LRSDETAIL
+Begin
+
+L_COMMANDLINE = Str(LRSSETUP:CLAIM_NO,11) + uppercase(trun(LRSSETUP:COMPANY_ID))
+
+If SFSCOMPANY:DEBUG_MODE = 0 Then
+    Proc("csbatch lrsup100 %s",l_commandline)/noconsole
+Else
+    Proc("csbatch lrsup100 %s",l_commandline)
+
+End
+
+Procedure PROCESS_REINSURANCE
+Begin
+/* reinsurance processing, added july 10, 2001 (dlp) */
+
+L_REIN_COMPANY_ID = LRSSUMMARY:COMPANY_ID/spacefill
+L_REINS_OUTFILE = "lrsup600.out"
+Deletefile(L_REINS_OUTFILE)
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSETUP:COMPANY_ID,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSETUP:CLAIM_NO,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSETUP:LINE_OF_BUSINESS,"<NL>")
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSETUP:LOB_SUBLINE,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSETUP:CAUSE_OF_LOSS,"<NL>")
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSETUP:CAUSE_LOSS_SUBLINE,"<NL>")
+Closefile (L_REINS_OUTFILE)
+
+If SFSCOMPANY:DEBUG_MODE = 0 Then
+    Begin
+    Proc ("lrscededwrk.mk")/noconsole
+    Proc ("csbatch lrsup600")/noconsole
+    End
+Else
+    Begin
+    Proc ("lrscededwrk.mk")/noconsole
+    Proc ("csbatch lrsup600")/noconsole
+    End
+
+Deletefile (L_REINS_OUTFILE)
+End
+
+Procedure GET_CLAIM_NO
+Begin
+I_CSEXEC_APPLICATION = "LRSCLAIM                 "
+Include "lrscsexec.pro"
+
+If LRSSETUP:CLAIM_NO = 0 Then
+    LRSSETUP:CLAIM_NO = I_CSEXEC_NUMBER
+
+End
+
+Procedure GET_POLICY
+Begin
+Access SFPCURRENT, Set SFPCURRENT:POLICY_NO = LRSSETUP:POLICY_NO, Exact
+
+Access SFPNAME, Set SFPNAME:POLICY_NO    = SFPCURRENT:POLICY_NO,
+                    SFPNAME:POL_YEAR     = SFPCURRENT:POL_YEAR,
+                    SFPNAME:END_SEQUENCE = SFPCURRENT:END_SEQUENCE, Generic
+
+LRSSETUP:NAME[1]           = SFPNAME:NAME[1]
+LRSSETUP:LINE_OF_BUSINESS  = SFPNAME:LINE_OF_BUSINESS
+End
+
+Procedure SETUP_LRSWORK
+Begin
+Do SUBCODE
+Add LRSWORK
+    Begin
+    LRSWORK:COMPANY_ID          = LRSSETUP:COMPANY_ID
+    LRSWORK:POLICY_NO           = LRSSETUP:POLICY_NO
+    LRSWORK:POL_YEAR            = L_YEAR
+    LRSWORK:END_SEQUENCE        = L_END_SEQUENCE
+    LRSWORK:PREM_NO             = 0
+    LRSWORK:BUILD_NO            = 0
+    LRSWORK:SUB_CODE            = L_SUB_CODE
+    LRSWORK:ADDRESS1            = "Not on File"
+    LRSWORK:TRANS_EFF           = SFPMASTER:TRANS_EFF
+    LRSWORK:TRANS_EXP           = SFPMASTER:TRANS_EXP
+    LRSWORK:ALLOW_THEM_TO_CHANGE = 1
+    End
+
+Access SFPLOCATION, Set SFPLOCATION:POLICY_NO = LRSSETUP:POLICY_NO, Generic
+
+While SFPLOCATION:POLICY_NO = LRSSETUP:POLICY_NO
+    Begin
+    Access SFPMASTER, Set SFPMASTER:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                          SFPMASTER:POL_YEAR     = SFPLOCATION:POL_YEAR ,
+                          SFPMASTER:END_SEQUENCE = SFPLOCATION:END_SEQUENCE, Generic
+
+    Access SFPNAME, Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                        SFPNAME:POL_YEAR     = SFPLOCATION:POL_YEAR ,
+                        SFPNAME:END_SEQUENCE = SFPLOCATION:END_SEQUENCE, Generic
+
+    Access SFPMASTER, Set SFPMASTER:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                          SFPMASTER:POL_YEAR     = sfplocation:pol_YEAR ,
+                          SFPMASTER:END_SEQUENCE = sfplocation:END_SEQUENCE, Generic
+
+    if sfpname:eff_date <= lrssetup:loss_date and
+       sfpname:exp_date >= lrssetup:loss_date and
+       sfpmaster:trans_eff <= lrssetup:loss_date and
+       sfpmaster:trans_exp >= lrssetup:loss_date then
+        Begin
+        Do SUBCODE
+        L_YEAR = SFPLOCATION:POL_YEAR
+        L_END_SEQUENCE = SFPLOCATION:END_SEQUENCE
+        L_STATE = SFPLOCATION:STATE
+        Add LRSWORK
+            Begin
+            LRSWORK:COMPANY_ID           = LRSSETUP:COMPANY_ID
+            LRSWORK:POLICY_NO            = SFPLOCATION:POLICY_NO
+            LRSWORK:POL_YEAR             = SFPLOCATION:POL_YEAR
+            LRSWORK:END_SEQUENCE         = SFPLOCATION:END_SEQUENCE
+            LRSWORK:PREM_NO              = SFPLOCATION:PREM_NO
+            LRSWORK:BUILD_NO             = SFPLOCATION:BUILD_NO
+            LRSWORK:SUB_CODE             = L_SUB_CODE
+            LRSWORK:ADDRESS1             = trun(SFPLOCATION:ADDRESS) +
+                                           trun(SFPLOCATION:CITY) +
+                                           SFPLOCATION:STR_STATE
+            LRSWORK:TRANS_EFF            = SFPMASTER:TRANS_EFF
+            LRSWORK:TRANS_EXP            = SFPMASTER:TRANS_EXP
+            LRSWORK:ALLOW_THEM_TO_CHANGE = 0
+            lrswork:state                = sfplocation:state
+            End
+        End
+
+    Next SFPLOCATION
+    End
+
+
+Access PLPADDPREM, Set PLPADDPREM:POLICY_NO = LRSSETUP:POLICY_NO, Generic
+
+While PLPADDPREM:POLICY_NO = LRSSETUP:POLICY_NO
+    Begin
+    Access SFPMASTER, Set SFPMASTER:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                          SFPMASTER:POL_YEAR     = PLPADDPREM:POL_YEAR ,
+                          SFPMASTER:END_SEQUENCE = PLPADDPREM:END_SEQUENCE, Generic
+
+    Access SFPNAME, Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                        SFPNAME:POL_YEAR     = PLPADDPREM:POL_YEAR ,
+                        SFPNAME:END_SEQUENCE = PLPADDPREM:END_SEQUENCE, Generic
+
+    If ((Year(SFPNAME:EFF_DATE) = Year(LRSSETUP:LOSS_DATE) Or
+       Year(SFPNAME:EXP_DATE) = Year(LRSSETUP:LOSS_DATE)) And
+       SFPMASTER:TRANS_EFF <= LRSSETUP:LOSS_DATE) Then
+        Begin
+        Do SUBCODE
+        Add LRSWORK
+            Begin
+            LRSWORK:COMPANY_ID          = LRSSETUP:COMPANY_ID
+            LRSWORK:POLICY_NO           = PLPADDPREM:POLICY_NO
+            LRSWORK:POL_YEAR            = PLPADDPREM:POL_YEAR
+            LRSWORK:END_SEQUENCE        = PLPADDPREM:END_SEQUENCE
+            LRSWORK:PREM_NO             = PLPADDPREM:PREM_NO
+            LRSWORK:BUILD_NO            = PLPADDPREM:BUILD_NO
+            LRSWORK:SUB_CODE            = L_SUB_CODE
+            LRSWORK:ADDRESS1            = Trun(Str(PLPADDPREM:ST_NUMBER)) +
+                                          Trun(PLPADDPREM:STREET) +
+                                          trun(PLPADDPREM:CITY) +
+                                          PLPADDPREM:STR_STATE
+            LRSWORK:TRANS_EFF           = SFPMASTER:TRANS_EFF
+            LRSWORK:TRANS_EXP           = SFPMASTER:TRANS_EXP
+            LRSWORK:ALLOW_THEM_TO_CHANGE = 0
+            End
+        End
+
+    Next PLPADDPREM
+    End
+
+End
+
+Procedure SUBCODE
+Begin
+Access LRSWORK_ALIAS, Set LRSWORK_ALIAS:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                          LRSWORK_ALIAS:POLICY_NO  = LRSSETUP:POLICY_NO, Generic
+
+L_SUB_CODE = 0
+While LRSWORK_ALIAS:COMPANY_ID = LRSSETUP:COMPANY_ID And
+      LRSWORK_ALIAS:POLICY_NO  = LRSSETUP:POLICY_NO
+       Begin
+       L_SUB_CODE = LRSWORK_ALIAS:SUB_CODE
+
+       Next LRSWORK_ALIAS
+       End
+
+L_SUB_CODE = L_SUB_CODE + 10
+
+End
+
+Procedure CHECK_SFPNAME
+Begin
+Access SFPNAME, Set SFPNAME:POLICY_NO = LRSSETUP:POLICY_NO, Generic
+
+L_VALID_POLICY = "N"
+L_CANCELLED = "N"
+While SFPNAME:POLICY_NO = LRSSETUP:POLICY_NO
+    Begin
+    If SFPNAME:EFF_DATE <= LRSSETUP:LOSS_DATE And
+       SFPNAME:EXP_DATE >= LRSSETUP:LOSS_DATE Then
+        Begin
+        L_VALID_POLICY = "Y"
+        If SFPNAME:STATUS = "LOSSES" Then
+            LRSSETUP:IDP_POLICY = "Y"
+        Else
+            LRSSETUP:IDP_POLICY = "N"
+        LRSSETUP:POL_YEAR = SFPNAME:POL_YEAR
+        LRSSETUP:END_SEQUENCE = SFPNAME:END_SEQUENCE
+        LRSSETUP:NAME[1] = SFPNAME:NAME[1]
+        LRSSETUP:LINE_OF_BUSINESS = SFPNAME:LINE_OF_BUSINESS
+        LRSSETUP:AGENT_NO = SFPNAME:AGENT_NO
+        LRSSETUP:EFF_DATE = SFPNAME:EFF_DATE
+        If SFPNAME:STATUS = "CANCELLED" And
+           SFPNAME:STATUS_DATE <= LRSSETUP:LOSS_DATE Then
+            Begin
+            LRSSETUP:STATUS = "X"
+            LRSSETUP:STATUS_DATE = SFPNAME:STATUS_DATE
+            L_CANCELLED     = "Y"
+            End
+        Else
+            Begin
+            LRSSETUP:STATUS = "O"
+            LRSSETUP:STATUS_DATE = TODAYSDATE
+            L_CANCELLED     = "N"
+            End
+        End
+
+    Next SFPNAME
+    End
+
+End
+
+Procedure UPDATE_SFPNAME
+Begin
+access sfpcurrent, set sfpcurrent:policy_no = lrssetup:policy_no, generic
+
+Access SFPNAME, Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO ,
+                    SFPNAME:POL_YEAR     = sfpcurrent:POL_YEAR ,
+                    SFPNAME:END_SEQUENCE = sfpcurrent:END_SEQUENCE ,Exact
+
+If SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO And
+   SFPNAME:POL_YEAR     = sfpcurrent:POL_YEAR And
+   SFPNAME:END_SEQUENCE = sfpcurrent:END_SEQUENCE Then
+    Change SFPNAME
+        Begin
+        SFPNAME:NUMBER_OF_CLAIMS       =       SFPNAME:NUMBER_OF_CLAIMS + 1
+        End
+
+End
+
+Procedure SCIPS_MACRO
+Begin
+I_SCIPS_SELECT = "Y"
+
+If I_SCIPS_SELECT = "Y" Then
+    Begin
+    I_SCIPS_PARAM_NAME = Lowercase(Trun(PROGRAMID)) + Trun(Str(PID)) + ".par"
+    deletefile(i_scips_param_name)
+    Writefile(I_SCIPS_PARAM_NAME,"%n<nl>",LRSSETUP:CLAIM_NO)
+    closefile(i_scips_param_name)
+    End
+
+Include "lrsstatusprt.pro"
+
+Procedure UPDATE_LRSSUMMARY_LAE
+Begin
+
+Proc ("csbatch lrsup101 %s %s",Str(LRSSETUP:CLAIM_NO,"99999999999"),Uppercase(LRSSETUP:COMPANY_ID))
+
+End
+
+/* Events Procedures Only Go below here */
+
+Procedure Show_CAT
+begin
+
+g_company_id = lrssetup:company_id
+g_cat_no     = lrssetup:cat_no
+display modal screen "lrsmt108"
+
+end
+
+Procedure Show_pa
+begin
+
+g_company_id    = lrssetup:company_id
+g_pub_adjust_no = lrssetup:pub_adjust_no
+display modal screen "lrsmt107"
+
+end
+
+Procedure Show_accounts_payable
+begin
+
+g_company_id    = lrssetup:company_id
+g_claim_no      = lrssetup:claim_no
+display modal screen "apsmt200"
+
+end
+
+Procedure Show_claimant
+begin
+
+g_company_id = lrssetup:company_id
+g_claim_no   = lrssetup:claim_no
+display modal screen "lrsmt104"
+
+end
+
+Procedure Show_examiner
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[1]
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_adjuster
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[2]
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_coverage_opinion
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[5]
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_litigation
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[3]
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_dj
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[4]
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_plaintiff_attorney
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:plantiff_vendor
+display modal screen "sfsmt003"
+
+end
+
+Procedure Show_subro_salvage
+begin
+
+g_company_id = lrssetup:company_id
+g_vendor_no  = lrssetup:vendor_no[6]
+display modal screen "sfsmt003"
+
+end
+
+End

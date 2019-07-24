@@ -1,0 +1,70 @@
+%%
+Screen
+        Name = "lrsmt01g" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Change Status - Ver 7.00     %m" ;
+        domain="lrssetup" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSSETUP,
+           Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+               LRSSETUP:CLAIM_NO   = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:        __________  _____________________________________________ |
+| Claim No:          ____________                                              |
+*------------------------------------------------------------------------------*
+| Status:            _   (O=Open  C=Closed  R=Reopen)                          |
+| Pay Status:        __  (0=Open  1=Closed With Pay   2=Closed Without Pay)    |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSSETUP:COMPANY_ID                     Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSSETUP:CLAIM_NO                       Mandatory;
+601     LRSSETUP:STATUS;
+701     LRSSETUP:STATUS_2;
+
+}
+
+End

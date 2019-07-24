@@ -1,0 +1,154 @@
+%%
+Screen
+        Name = "Lrssetup" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s LRSSETUP - Ver 7.00     %m" ;
+        domain="lrssetup" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSSETUP,
+           Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+               LRSSETUP:CLAIM_NO = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        "func1" display "lrssetup1" tagged vendors_fn ;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+        include "stdblanktoolbar7.inc"
+
+}
+
+Toolbar Tagged lrs_t Properties
+                                  {
+                                         Text     = "LRS"
+                                         FontName = "SansSerif"
+                                         Fontsize = 10
+                                  }
+                        {
+--separator
+                     ToolBarButton
+                                  Properties
+                                  {
+                                      iconname   = "up.bmp"
+                                      tooltip    = "Vendors"
+                                  }
+                                  Events
+                                  {
+                                       Action = vendors_fn
+                                  }
+
+}
+
+screen
+{
+%%
+                                                        ______________
+*------------------------------------------------------------------------------*
+| Company Id:         __________    Prem No:    ____   Build No: ____          |
+| Claim Number:       ___________   Vehicle No: ____                           |
+| Policy Number:      _________     Pol Year:   ____   End Seq:  ____          |
+| Name:               __________________________________________________       |
+|                     __________________________________________________       |
+|                     __________________________________________________       |
+| Claimant:           __________________________________________________       |
+| Line Of Business:   ____          IDP Policy:        _                       |
+| LOB Subline:        __            Private Passenger: _                       |
+| Cause Of Loss:      ____          Territory:         ___                     |
+| Cause Loss Subline: __            TPA Claim:         _                       |
+| Loss Date:          __________    Trans Date:        __________              |
+| Reported Date:      __________    Other System No:   __________              |
+| Effective Date:     __________    Cancelled Policy:  _                       |
+| Status:             _             Coverted Claim:    _                       |
+| Status 2:           __            Closed Date:       __________              |
+| Status Date:        __________    Reopened Date:     __________              |
+| Agent Number:       ____                                                     |
+| Loss Notice Needed: _                                                        |
+| Fac Reins:          _                                                        |
+| TPA Claim No:       _______________                                          |
+| State:              __                                                       |
+| County:             ___                                                      |
+| Comments:           ___________________________________________________      |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION ;
+301     LRSSETUP:COMPANY_ID                     Mandatory;
+401     LRSSETUP:CLAIM_NO                       Mandatory;
+501     LRSSETUP:POLICY_NO ;
+601     LRSSETUP:NAME[1] ;
+701     lrssetup:name[2] ;
+801     lrssetup:name[3] ;
+901     LRSSETUP:CLAIMANT ;
+1001    LRSSETUP:LINE_OF_BUSINESS;
+1101    LRSSETUP:LOB_SUBLINE;
+1201    LRSSETUP:CAUSE_OF_LOSS;
+1301    LRSSETUP:CAUSE_LOSS_SUBLINE;
+1401    LRSSETUP:LOSS_DATE;
+1501    LRSSETUP:REPORTED_DATE;
+1601    LRSSETUP:EFF_DATE;
+1701    LRSSETUP:STATUS;
+1801    LRSSETUP:STATUS_2;
+1901    LRSSETUP:STATUS_DATE;
+2001    LRSSETUP:AGENT_NO;
+2101    lrssetup:loss_notice_needed ;
+2201    lrssetup:facultative_reinsurance ;
+2301    lrssetup:tpa_claim_number ;
+2401    lrssetup:state ;
+2501    lrssetup:county ;
+2601    lrssetup:comments ;
+302     lrssetup:prem_no ;
+303     lrssetup:build_no ;
+402     lrssetup:vehicle_no ;
+502     lrssetup:pol_year ;
+503     lrssetup:end_sequence ;
+1002    lrssetup:idp_policy ;
+1102    lrssetup:private_passenger ;
+1202    lrssetup:territory ;
+1302    lrssetup:tpa_claim ;
+1402    lrssetup:trans_date ;
+1502    lrssetup:other_system_claim_no ;
+1602    lrssetup:cancelled_policy ;
+1702    lrssetup:converted_claim ;
+1802    lrssetup:closed_status_date ;
+1902    lrssetup:reopened_status_date ;
+
+}
+
+Screen Exit
+        If LRSSETUP:COMPANY_ID > "" Then G_COMPANY_ID = LRSSETUP:COMPANY_ID ;
+        If LRSSETUP:CLAIM_NO > 0 Then G_CLAIM_NO = LRSSETUP:CLAIM_NO ;
+
+
+End

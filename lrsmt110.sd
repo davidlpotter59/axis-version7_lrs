@@ -1,0 +1,159 @@
+%%
+Screen
+        Name = "Lrsmt110" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic" ;
+        Highlite = Underscore ;
+        Windowtitle = "%a     %s 1099B Provider - Ver 7.00     %m ";
+        Domain = "LRSBFNAME" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ,
+                      G_BF_NAME[50]  ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_BF_NO[5] ;
+
+        Local Unsigned Ascii Number L_TIN_COUNT[2]=0,
+                                    L_TIN[2]=0 ;
+
+        Include "sfscsexec.var"
+
+        Access LRSBFNAME,
+           Set LRSBFNAME:COMPANY_ID = G_COMPANY_ID ,
+               LRSBFNAME:CLAIM_NO   = G_CLAIM_NO ,
+               LRSBFNAME:BF_NO      = G_BF_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        include "stdtoolbar7.inc"
+
+}
+
+access validation
+if lrsbfname:company_id <> g_company_id or
+   lrsbfname:claim_no <> g_claim_no or
+   lrsbfname:bf_no <> g_bf_no then
+    error 1000 ;
+
+screen at 2,1 to 19,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:   __________  __________________________________________________ |
+| Claim Number: ___________                                                    |
+*------------------------------------------------------------------------------*
+| 1099B No:     _____                                                          |
+| Name:         __________________________________________________             |
+|               __________________________________________________             |
+|               __________________________________________________             |
+| Address:      __________________________________________________             |
+|               __________________________________________________             |
+|               __________________________________________________             |
+| City:         ______________________________                                 |
+| State:        ____                                                           |
+| Zip Code:     ___________                                                    |
+| Telephone:    ________________                                               |
+| Tin No:       ____________                                                   |
+| FOB:          __  _________________________________________________________  |
+*------------------------------------------------------------------------------*
+%%
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            LRSBFNAME:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+        End
+        LRSBFNAME:COMPANY_ID/default         Mandatory;
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     Begin
+        If FUNCTION = "ADD" Then
+             LRSBFNAME:CLAIM_NO = G_CLAIM_NO
+        End
+        LRSBFNAME:CLAIM_NO/displayonly        ;
+601     Begin
+        If FUNCTION = "ADD" Then
+            Do GET_BF_NO
+        End
+        LRSBFNAME:BF_NO/displayonly                  Mandatory
+        G_BF_NO = LRSBFNAME:BF_NO ;
+701     LRSBFNAME:NAME[1]                          Mandatory
+        G_BF_NAME = LRSBFNAME:NAME[1] ;
+801     LRSBFNAME:NAME[2];
+901     LRSBFNAME:NAME[3];
+1001    LRSBFNAME:ADDRESS[1];
+1101    LRSBFNAME:ADDRESS[2];
+1201    LRSBFNAME:ADDRESS[3];
+1301    LRSBFNAME:CITY;
+1401    LRSBFNAME:STR_STATE;
+1501    LRSBFNAME:STR_ZIP_CODE;
+1501    Begin
+        If LRSBFNAME:STR_ZIP_CODE[6,9] = "" Then
+            LRSBFNAME:STR_ZIP_CODE[6,9] = "0000"
+        End
+        LRSBFNAME:STR_ZIP_CODE/displayonly ;
+1601    LRSBFNAME:TELEPHONE;
+1701    LRSBFNAME:TIN_NO Mandatory
+        Do CHECK_TIN_DIGIT_9
+        If L_TIN_COUNT < 9 Or
+           L_TIN_COUNT > 9 Then
+            Error "Must enter 9 digits" ;
+1801    lrsbfname:form_of_business/uppercase
+        if lrsbfname:form_of_business <> sfsfob:form_of_business then
+            error "Invalid Form of Business entered"
+
+        activehelp sfsfob_alias:form_of_business,
+                   sfsfob_alias:description ;
+1802    sfsfob:description ;
+
+
+} -- end of screen panel
+
+Procedure Definition
+
+Procedure GET_BF_NO
+Begin
+I_CSEXEC_APPLICATION = "1099B                    "
+Include "sfscsexec.pro"
+
+If LRSBFNAME:BF_NO = 0 Then
+     LRSBFNAME:BF_NO = I_CSEXEC_NUMBER
+
+End
+
+Procedure CHECK_TIN_DIGIT_9
+Begin
+L_TIN_COUNT = 0
+L_TIN = 1
+While L_TIN < 13
+    Begin
+    If LRSBFNAME:TIN_NO[L_TIN] <> "" And
+       LRSBFNAME:TIN_NO[L_TIN] <> "-" Then
+        Begin
+        L_TIN_COUNT = L_TIN_COUNT + 1
+        End
+    L_TIN = L_TIN + 1
+    End
+End
+
+End

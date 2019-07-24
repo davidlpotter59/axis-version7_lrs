@@ -1,0 +1,241 @@
+%%
+Screen
+        Name = "LRSMT02c" ;
+        Type = "Multiline" ;
+        Repeat LINE_ITEMS, 11 Times ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize="dynamic";
+        Windowtitle="%a,     %s Loss Detail Reinsurance Change Screen - Ver 7.00     %m";
+        Domain = "LRSDETAIL" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Local Signed Ascii Number L_TOTAL_RESV[11]/dec=0 ,
+                                  L_TOTAL_PAID[10]/dec=2 ,
+                                  L_TOTAL_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_ALAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_ALAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_ALAE_PAID[10]/dec=2 ;
+
+        local unsigned ascii number l_abort_program[1] ;
+
+        Local String L_STATUS[9] ,
+                     l_username[15],
+                     l_system_id[15] ;
+
+        Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID  = G_COMPANY_ID ,
+                              LRSDETAIL:CLAIM_NO    = G_CLAIM_NO ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        append tagged append_fn ;
+        Include "stdfunc7.inc"
+
+        "redisplay" Display/noreturn "lrsmt02c" ;
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7m.inc"
+
+}
+
+screen entry
+if g_company_id = "" then
+    begin
+    g_company_id = sfsdefault:company_id
+    end
+
+l_username      = username/spacefill
+l_system_id     = "lrs"/spacefill
+l_abort_program = 0
+
+access sfssecurity_claims, set sfssecurity_claims:company_id = g_company_id,
+                               sfssecurity_claims:user_id    = l_username,
+                               sfssecurity_claims:system_id  = l_system_id, generic
+
+if sfssecurity_claims:add_claims not one of 1 then
+    begin
+    disable (add_fn)
+    disable (append_fn)
+    end
+
+if sfssecurity_claims:change_claims not one of 1 then
+    begin
+    disable (change_fn)
+    end
+
+if sfssecurity_claims:delete_claims not one of 1 then
+    begin
+    disable (delete_fn)
+    end
+
+Access Validation
+Skip when LRSDETAIL:TRANS_CODE < 70
+
+If LRSDETAIL:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000
+
+screen at 2,1 to 28,105
+{
+%%
+                                                        _______________
+*-----------------------------------------------------------------------------------------------------*
+| Company:   __________   _____________________________________________________                       |
+| Claim No:  ___________  _____________________________________________________                       |
+| Agent No:  ____         _____________________________________________________                       |
+| Reported:  __________   Policy No: _________                                                        |
+| Loss Date: __________   Status:    _______         Status Date: __________                          |
+| Claimant:  __________________________________________________                                       |
+*-----------------------------------------------------------------------------------------------------*
+|   Trans              Cause        T    Check       Loss        Loss        LAE         LAE          |
+|   Date        LOB    Loss  Vendor C      No        Resv        Paid        Resv        Paid         |
+| __________ ____ ___ ____ ___ _____ __ __________ ___________ ____________ ___________ ____________  |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+|                                                                                                     |
+*-----------------------------------------------------------------------------------------------------*
+|                                     Ceded:    ___________ ____________ ___________ ____________     |
+*-----------------------------------------------------------------------------------------------------*
+
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+0301    Begin
+            Do TOTALS
+        End
+        LRSDETAIL:COMPANY_ID/displayonly ;
+0302    SFSCOMPANY:NAME[1] ;
+0401    LRSDETAIL:CLAIM_NO/displayonly ;
+0402    LRSSETUP:NAME[1]/displayonly ;
+0501    LRSSETUP:AGENT_NO/displayonly ;
+0502    SFSAGENT:NAME[1]/displayonly ;
+0601    LRSSETUP:REPORTED_DATE/displayonly ;
+0602    LRSSETUP:POLICY_NO/displayonly ;
+0701    LRSSETUP:LOSS_DATE/displayonly ;
+0702    Begin
+        Switch(LRSSETUP:STATUS)
+          Case "O" : L_STATUS = "OPEN"
+          Case "C" : L_STATUS = "CLOSED"
+          Case "R" : L_STATUS = "RE-OPENED"
+          End
+        End
+        L_STATUS/displayonly ;
+0703    LRSSETUP:STATUS_DATE/displayonly/mask="MM/DD/YYYY" ;
+0801    LRSSETUP:CLAIMANT/displayonly ;
+
+1201    LRSDETAIL:TRANS_DATE/default          tagged LINE_ITEMS;
+1202    LRSDETAIL:LINE_OF_BUSINESS/default    tagged LINE_ITEMS;
+1203    LRSDETAIL:LOB_SUBLINE/default         tagged LINE_ITEMS;
+1204    LRSDETAIL:CAUSE_OF_LOSS/default       tagged LINE_ITEMS;
+1205    LRSDETAIL:CAUSE_LOSS_SUBLINE/default  tagged LINE_ITEMS;
+1206    LRSDETAIL:VENDOR_NO/default        tagged LINE_ITEMS;
+1207    LRSDETAIL:TRANS_CODE/default          tagged LINE_ITEMS;
+1208    LRSCHECK:CHECK_NO_STRING/default      tagged LINE_ITEMS;
+1209    LRSDETAIL:LOSS_RESV/default           tagged LINE_ITEMS;
+1210    LRSDETAIL:LOSS_PAID/default           tagged LINE_ITEMS;
+1211    LRSDETAIL:LAE_RESV/default            tagged LINE_ITEMS;
+1212    LRSDETAIL:LAE_PAID/default            tagged LINE_ITEMS;
+
+2401    L_TOTAL_CEDED_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2402    L_TOTAL_CEDED_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2403    L_TOTAL_CEDED_ULAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2404    L_TOTAL_CEDED_ULAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+
+} -- end of screen panel
+
+Update
+If UPDATEOK = "YES" And
+   Abort = "NO" Then
+    Begin
+    FUNCTION = "redisplay"
+    End
+
+Procedure Definition
+
+Procedure TOTALS
+Begin
+Access LRSDETAIL_ALIAS, Set LRSDETAIL_ALIAS:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                            LRSDETAIL_ALIAS:CLAIM_NO   = LRSDETAIL:CLAIM_NO, Generic
+
+L_TOTAL_RESV            = 0
+L_TOTAL_PAID            = 0
+L_TOTAL_ULAE_RESV       = 0
+L_TOTAL_ULAE_PAID       = 0
+L_TOTAL_ALAE_RESV       = 0
+L_TOTAL_ALAE_PAID       = 0
+L_TOTAL_CEDED_RESV      = 0
+L_TOTAL_CEDED_PAID      = 0
+L_TOTAL_CEDED_ULAE_RESV = 0
+L_TOTAL_CEDED_ULAE_PAID = 0
+L_TOTAL_CEDED_ALAE_RESV = 0
+L_TOTAL_CEDED_ALAE_PAID = 0
+L_TOTAL_NET_RESV        = 0
+L_TOTAL_NET_PAID        = 0
+L_TOTAL_NET_ULAE_RESV   = 0
+L_TOTAL_NET_ULAE_PAID   = 0
+L_TOTAL_NET_ALAE_RESV   = 0
+L_TOTAL_NET_ALAE_PAID   = 0
+
+While LRSDETAIL_ALIAS:COMPANY_ID = LRSDETAIL:COMPANY_ID And
+      LRSDETAIL_ALIAS:CLAIM_NO   = LRSDETAIL:CLAIM_NO
+        Begin
+        If LRSDETAIL_ALIAS:TRANS_CODE >= 70 Then
+            Begin
+            L_TOTAL_CEDED_RESV      = L_TOTAL_CEDED_RESV      + LRSDETAIL_ALIAS:LOSS_RESV
+            L_TOTAL_CEDED_PAID      = L_TOTAL_CEDED_PAID      + LRSDETAIL_ALIAS:LOSS_PAID
+            L_TOTAL_CEDED_ULAE_RESV = L_TOTAL_CEDED_ULAE_RESV + LRSDETAIL_ALIAS:LAE_RESV
+            L_TOTAL_CEDED_ULAE_PAID = L_TOTAL_CEDED_ULAE_PAID + LRSDETAIL_ALIAS:LAE_PAID
+            End
+
+        L_TOTAL_NET_RESV      = L_TOTAL_RESV      + L_TOTAL_CEDED_RESV
+        L_TOTAL_NET_PAID      = L_TOTAL_PAID      + L_TOTAL_CEDED_PAID
+        L_TOTAL_NET_ULAE_RESV = L_TOTAL_ULAE_RESV + L_TOTAL_CEDED_ULAE_RESV
+        L_TOTAL_NET_ULAE_PAID = L_TOTAL_ULAE_PAID + L_TOTAL_CEDED_ULAE_PAID
+
+        Next LRSDETAIL_ALIAS
+
+        End
+
+End
+
+End

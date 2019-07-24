@@ -1,0 +1,127 @@
+%%
+Screen
+        Name = "LRSMT107" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize="dynamic" ;
+        Windowtitle = "%a     %s Public Adjuster - Ver 7.00     %m" ;
+        Domain = "LRSPUBADJ" ;
+--        resizeable = YES ;
+        iconline=0;
+
+        Global String G_COMPANY_ID[10];
+
+        Global Unsigned Ascii Number G_PUB_ADJUST_NO[4];
+
+        Include "sfscsexec.var"
+
+        Include "scipsprint.var"
+
+        Access LRSPUBADJ,
+           Set LRSPUBADJ:COMPANY_ID    = G_COMPANY_ID ,
+               LRSPUBADJ:PUB_ADJUST_NO = G_PUB_ADJUST_NO;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        include "stdtoolbar7.inc"
+
+}
+
+Access Validation
+--If lrspubadj:company_id    <> g_company_id or
+--   LRSpubadj:pub_adJust_NO <> G_PUB_ADJUST_NO Then
+--    Error 1000 ;
+
+screen at 2,1 to 20,80
+{
+%%
+                                                     _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________ _______________________________________________ |
+| Pub Adjust No:    ____                                                       |
+*------------------------------------------------------------------------------*
+| Name:             __________________________________________________         |
+|                   __________________________________________________         |
+|                   __________________________________________________         |
+| Address:          __________________________________________________         |
+|                   __________________________________________________         |
+|                   __________________________________________________         |
+| Po Box:           _____________                                              |
+| City:             ______________________________                             |
+| State Code:       ____                                                       |
+| Zipcode:          ___________                                                |
+| Telephone Number: ________________                                           |
+| Fax Number:       ________________                                           |
+| Email Address:    __________________________________________________         |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            LRSPUBADJ:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+        End
+        LRSPUBADJ:COMPANY_ID/default                    Mandatory
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     Begin
+        If FUNCTION  = "ADD" And
+           LRSPUBADJ:PUB_ADJUST_NO  = 0 Then
+            Do GET_QUOTE
+        End
+        LRSPUBADJ:PUB_ADJUST_NO/default              Mandatory
+        G_PUB_ADJUST_NO = LRSPUBADJ:PUB_ADJUST_NO
+
+        activehelp lrspubadj_alias:pub_adjust_no,
+        lrspubadj_alias:name[1] ;
+601     LRSPUBADJ:NAME[1]                          Mandatory;
+701     LRSPUBADJ:NAME[2];
+801     LRSPUBADJ:NAME[3];
+901     LRSPUBADJ:ADDRESS[1];
+1001    LRSPUBADJ:ADDRESS[2];
+1101    LRSPUBADJ:ADDRESS[3];
+1201    LRSPUBADJ:PO_BOX;
+1301    LRSPUBADJ:CITY;
+1401    LRSPUBADJ:STR_STATE ;
+1501    LRSPUBADJ:STR_ZIPCODE;
+1501    Begin
+          If LRSPUBADJ:STR_ZIPCODE[6,9] = "" Then
+             LRSPUBADJ:STR_ZIPCODE[6,9] = "0000"
+        End
+        LRSPUBADJ:STR_ZIPCODE/displayonly ;
+1601    LRSPUBADJ:TELEPHONE;
+1701    LRSPUBADJ:FAX;
+1801    LRSPUBADJ:EMAIL;
+
+} -- end of panel
+
+Procedure Definition
+
+Procedure GET_QUOTE
+
+Begin
+  I_CSEXEC_APPLICATION = "PUBLIC_NO                "
+  Include "sfscsexec.pro"
+  If LRSPUBADJ:PUB_ADJUST_NO = 0 Then
+     LRSPUBADJ:PUB_ADJUST_NO = I_CSEXEC_NUMBER
+End
+
+End

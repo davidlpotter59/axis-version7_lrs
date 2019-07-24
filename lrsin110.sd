@@ -1,0 +1,93 @@
+%%
+Screen
+        Name = "Lrsin110" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic" ;
+        Highlite = Underscore ;
+        Windowtitle = "%a     %s 1099B Provider Maintenance - Ver. 7.00      %m ";
+        Domain = "LRSBFNAME" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_BF_NO[5] ;
+
+        Access LRSBFNAME,
+           Set LRSBFNAME:COMPANY_ID = G_COMPANY_ID ,
+               LRSBFNAME:CLAIM_NO = G_CLAIM_NO ,
+               LRSBFNAME:BF_NO = G_BF_NO ;
+
+        include "inqkeys.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+disable(add_fn)
+disable(change_fn)
+disable(delete_fn)
+
+screen at 2,1 to 18, 81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:   __________  __________________________________________________ |
+| Claim Number: ___________                                                    |
+*------------------------------------------------------------------------------*
+| 1099B No:     _____                                                          |
+| Name:         __________________________________________________             |
+|               __________________________________________________             |
+|               __________________________________________________             |
+| Address:      __________________________________________________             |
+|               __________________________________________________             |
+|               __________________________________________________             |
+| City:         ______________________________                                 |
+| State:        ____                                                           |
+| Zip Code:     ___________                                                    |
+| Telephone:    ________________                                               |
+| Tin No:       ____________                                                   |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSBFNAME:COMPANY_ID/displayonly  ;
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     LRSBFNAME:CLAIM_NO/displayonly ;
+601     LRSBFNAME:BF_NO/displayonly   ;
+701     LRSBFNAME:NAME[1]/displayonly ;
+801     LRSBFNAME:NAME[2]/displayonly ;
+901     LRSBFNAME:NAME[3]/displayonly ;
+1001    LRSBFNAME:ADDRESS[1]/displayonly ;
+1101    LRSBFNAME:ADDRESS[2]/displayonly ;
+1201    LRSBFNAME:ADDRESS[3]/displayonly ;
+1301    LRSBFNAME:CITY/displayonly ;
+1401    LRSBFNAME:STR_STATE/displayonly ;
+1501    LRSBFNAME:STR_ZIP_CODE/displayonly ;
+1601    LRSBFNAME:TELEPHONE/displayonly ;
+1701    LRSBFNAME:TIN_NO/displayonly ;
+
+} -- end of screen panel
+
+End

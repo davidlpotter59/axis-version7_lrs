@@ -1,0 +1,68 @@
+%%
+Screen
+        Name = "lrsmt115" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Send WCSSTAT - Ver 7.00     %m" ;
+        domain="lrssetup" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access lrssetup,
+           Set lrssetup:COMPANY_ID = G_COMPANY_ID ,
+               lrssetup:CLAIM_NO   = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:        __________  ____________________________________________  |
+| Claim Number:      ___________                                               |
+*------------------------------------------------------------------------------*
+| Send WCSSTAT:      _                                                         |
+| Date Sent:         __________                                                |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     lrssetup:COMPANY_ID/displayonly ;
+302     sfscompany:name[1] ;
+401     lrssetup:CLAIM_NO/displayonly ;
+601     lrssetup:send_wcsstat/checkbox/values="0,1" ;
+701     lrssetup:send_wcsstat_date ;
+
+}
+
+End

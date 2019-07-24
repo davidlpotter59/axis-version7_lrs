@@ -1,0 +1,70 @@
+%%
+Program
+-- update the NARS data
+-- this is special because of the claim number
+        Name = "lrsggfixline" ;
+        Type = "File" ;
+        Domain = "flat";
+        padcharacter = space ;
+
+        Number COUNTER = 0;
+        String L_COMPANY_ID[10]="";
+
+       String  l_enter[1];
+
+Screen Entry
+
+Update
+
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+Begin
+    Write ("<014>")
+    Write ("%c%s",01001,"Running lrssetupcnv_gg2")
+End
+
+write ("%c%s%n",05001,"Counter = ", counter)
+Screen Exit
+
+Do Update_lrsdetail_line_subline
+
+Write ("%c%s%n",15001,"Update is Compete......",COUNTER)
+
+Procedure Definition
+
+Procedure UPDATE_LRSDETAIL_LINE_SUBLINE
+{
+
+l_company_id = ""
+
+access lrsdetail, set lrsdetail:company_id = l_company_id, approximate
+
+while lrsdetail:errornumber = 0
+{
+   access lrssetup, set lrssetup:company_id = lrsdetail:company_id,
+                        lrssetup:claim_no   = lrsdetail:claim_no
+
+   if lrssetup:company_id = lrsdetail:company_id and
+      lrssetup:claim_no   = lrsdetail:claim_no then
+      {
+      access lrsdetail_alt, set lrsdetail_alt:company_id = lrsdetail:company_id,
+                                lrsdetail_alt:claim_no   = lrsdetail:claim_no,
+                                lrsdetail_alt:sub_code   = lrsdetail:sub_code
+
+      if lrsdetail_alt:company_id  = lrsdetail:company_id and
+         lrsdetail_alt:claim_no    = lrsdetail:claim_no and
+         lrsdetail_alt:sub_code    = lrsdetail:sub_code then
+         {
+           change lrsdetail_alt
+           {
+             lrsdetail_alt:line_of_business = lrssetup:line_of_business
+             lrsdetail_alt:lob_subline      = lrssetup:lob_subline
+           }
+         }
+       }
+       next lrsdetail
+       }
+} -- end of Procedure
+
+} -- end of program

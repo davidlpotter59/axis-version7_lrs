@@ -1,0 +1,988 @@
+%%
+Screen
+        Name = "lrsmt010c" ;
+        Type = "Multiline" ;
+        Repeat LINE_ITEMS, 8 times ;
+        Padcharacter = Space;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Summary - Non SCIPS Setup     Ver 7.00 %m"
+        Domain = "lrssummary" ;
+--        resizeable = Yes ;
+        iconline = 0 ;
+
+        Global String G_LIB[10],
+                      G_COMPANY_ID[10],
+                      G_CLAIMANT[50],
+                      G_CAUSE_LOSS_SUBLINE[2],
+                      G_LRSMT010[1],
+                      G_RESERVE_UPDATE[1],
+                      G_INSURED[1],
+                      G_LOSS_CLOSE[1],
+                      G_ULAE_CLOSE[1],
+                      G_ALAE_CLOSE[1] ,
+                      G_LOB_SUBLINE[2],
+                      G_YES[1] ,
+                      G_OVERPAYMENT[1] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_CAUSE_OF_LOSS[4],
+                                     G_CLAIMANT_SUBCODE[4],
+                                     g_sub_code[4],
+                                     G_LINE_OF_BUSINESS[4],
+                                     G_SUMMARY_SUB_CODE[4],
+                                     G_REINS_CO[6],
+                                     G_PAID_AMOUNT[9]/decimals=2 ,
+                                     G_ULAE_AMOUNT[9]/decimals=2,
+                                     G_ALAE_AMOUNT[9]/decimals=2 ,
+                                     G_STATUS[1] ,
+                                     G_TRANS_TYPE[2] ;
+
+        Global Signed Ascii Number G_SUMMARY_LOSS[7],
+                                   G_SUMMARY_ULAE[7],
+                                   G_SUMMARY_ALAE[7];
+
+        global unsigned ascii number g_policy_no[9],
+                                     g_claim_setup[1],
+                                     g_year[4];
+
+        Local Signed Ascii Number L_LOSS_RESV_TOTAL[8],
+                                  L_LOSS_PAID_TOTAL[8]/decimals=2,
+                                  L_L_PD_TOT[9]/decimals =2,
+                                  L_ULAE_RESV_TOTAL[8],
+                                  L_ULAE_PAID_TOTAL[8]/decimals=2,
+                                  L_U_PD_TOT[9]/decimals=2,
+                                  L_ALAE_RESV_TOTAL[8],
+                                  L_ALAE_PAID_TOTAL[8]/decimals=2,
+                                  L_A_PD_TOT[9]/decimals=2,
+                                  L_OLD_LOSS_RESV[8] ,
+                                  L_OLD_ULAE_RESV[8],
+                                  L_OLD_ALAE_RESV[8],
+                                  l_loss_resv[7]=0,
+                                  l_loss_paid[9]=0/dec=2,
+                                  l_lae_resv[5]=0,
+                                  l_lae_paid[7]=0/dec=2 ,
+                                  l_loss_resv_1[7]=0,
+                                  l_loss_paid_1[9]=0/dec=2,
+                                  l_ulae_resv_1[5]=0,
+                                  l_ulae_paid_1[7]=0/dec=2,
+                                  l_alae_resv_1[5]=0,
+                                  l_alae_paid_1[7]=0/dec=2 ;
+
+        local wdate l_status_date,
+                    g_loss_date;
+        Local Unsigned Ascii Number L_DETAIL_SUBCODE[4],
+                                    L_SUB[4],
+                                    l_status_2[1]=0,
+                                    L_TRANS_TYPE[2],
+                                    l_abort_program[1]=0,
+                                    L_OLD_COL[4],
+                                    L_OLD_TRANS_TYPE[2] ,
+                                    l_vendor_no[5]=0,
+                                    l_cause_of_loss[4]=0,
+                                    l_hide_post_check[1];
+
+        String l_status[1]="O",
+               l_cause_loss_subline[2]="",
+               l_ulae[1]="N",
+               l_screen[9],
+               l_alae[1]="N",
+               L_NAME_MATCH[1],
+               l_system_id[15]="",
+               l_dec[15]="",
+               L_OLD_COL_SUBLINE[2],
+               L_MISC[20],
+               L_CHECK[1]="N",
+               L_OPEN[1] ,
+               L_SUBRO[1],
+               L_SALVAGE[1],
+               L_OVERPAYMENT[1] ,
+               L_REOPENED[1] ,
+               L_LINE_TYPE[1] ,
+               L_ENTER[1],
+               L_REINS_OUTFILE[15],
+               L_REIN_COMPANY_ID[10]="",
+               l_commandline[39]="",
+               L_REINS_PROGRAM[12]="";
+
+        include "scipsprint.var"
+
+        include "virtualdecs.var"
+
+        Access lrssummary,
+           Set lrssummary:COMPANY_ID = G_COMPANY_ID ,
+               lrssummary:CLAIM_NO = G_CLAIM_NO ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+        include "lrsclaimfunc7.inc"
+        include "lrsdtlfunc7.inc"
+        include "lrsstatusfunc7.inc"
+        "redisplay" display/noreturn "lrsmt010c" ;
+        append  tagged append_fn ;
+
+        "W" display "lrsmt01g" tagged change_status_fn ;
+
+        "claim_work_flow" sequence "workflow" tagged  send_to_work_flow_fn;
+        "func1" display "" tagged resync_detail_fn ;
+        "func2" display "" tagged remove_credits_fn ;
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+        Include "lrsclaimmenu7.inc"
+        include "lrsdtlmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7m.inc"
+
+}
+
+        Include "stdblanktoolbar7.inc"
+
+}
+
+        Include "lrsclaimtoolbar7.inc"
+
+}
+
+Screen Entry
+LRSSUMMARY:COMPANY_ID = G_COMPANY_ID
+LRSSUMMARY:CLAIM_NO = G_CLAIM_NO
+G_LRSMT010 = "N"
+Do LOSS_RESV_TOTALS
+
+include "lrssecurity1.inc"
+
+if sfssecurity_claims:change_detail_records not one of 1 then
+    begin
+    disable(change_detail_fn)
+    end
+
+if sfssecurity_claims:change_detail_reins_records not one of 1 then
+    begin
+    disable(change_detail_reins_fn)
+    end
+
+if sfssecurity_claims:change_summary not one of 1 then
+    begin
+    disable(change_summary_totals_fn)
+    end
+
+disable(Search_fn)
+disable(add_fn)
+disable(delete_fn)
+
+Access Validation
+If lrssummary:COMPANY_ID <> G_COMPANY_ID Or
+   lrssummary:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000
+
+if lrssetup:idp_policy = "N" then
+    disable(nonscips_fn)
+
+screen at 2,1 to 21,122
+{
+%%
+                                                  _______________
+*-----------------------------------------------------------------------------------------------------------------------*
+| Company Id:    _____________  __________________________________________________                                      |
+| Claim Number:  ___________^                            Date of Loss:  __________                                      |
+| Policy No:     _____________                           Reported Date: __________                                      |
+*-----------------------------------------------------------------------------------------------------------------------*
+| Claimant  Trans  LOB Cause Cause   Loss        Loss           ULAE         ULAE           ALAE        ALAE     Status |
+|           Code  Sub  Loss  Sub     Resv        Paid           Resv         Paid           Resv        Paid            |
+*-----------------------------------------------------------------------------------------------------------------------*
+| __________ __    __  ____  ___  ___________ ______________ ____________ ______________ ___________ ______________  _  |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+| Totals                          ___________ ______________ ____________ ______________ ___________ ______________~~~~~|
+*-----------------------------------------------------------------------------------------------------------------------*
+%%
+Fields
+101     FUNCTION/noecho/showasguidetext ;
+301     lrssetup:company_id/displayonly ;
+302     trun(sfscompany:name[1]) ;
+401     lrssetup:claim_no/displayonly ;
+402     sfsline:claim_alpha ;
+403     lrssetup:loss_date ;
+501     lrssetup:policy_no ;
+502     lrssetup:reported_date ;
+
+1001    Begin
+        If FUNCTION = "redisplay" Then
+            Begin
+            Display Modal Screen "sfsmt127" -- add more records question
+            If G_YES = "Y" Then
+                FUNCTION = "APPEND"
+            Else
+                Abort()
+            End
+
+        If FUNCTION = "APPEND" Then
+            Begin
+            Display Modal Screen "lrsmt10b" -- claimant question
+            With Initial Function "CHANGE|BACK"
+            LRSSUMMARY:STATUS = "O"
+            LRSSUMMARY:STATUS_DATE = TODAYSDATE
+            LRSSUMMARY:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS
+            LRSSUMMARY:LOB_SUBLINE = LRSSETUP:LOB_SUBLINE
+            If G_INSURED = "Y" Then
+                LRSSUMMARY:CLAIMANT = LRSSETUP:NAME[1,1,50]
+            Else
+                LRSSUMMARY:CLAIMANT = " "
+            End
+
+        L_OLD_TRANS_TYPE = LRSSUMMARY:TRANS_TYPE
+        End
+        LRSSUMMARY:CLAIMANT/default/Style=Java_Hyperlink_blue tagged LINE_ITEMS
+        Properties {
+                   tooltip   = "This is the Claimant Assigned to this Claim"
+                   StatusBarText = "Click Here to View the Claimant Details"
+                   CursorShape   = HAND
+                   }
+                   events {
+                          MouseClicked = Show_claimant
+                          }
+
+        If LRSSUMMARY:CLAIMANT = "" Then
+            Begin
+            Do CHECK_LRSCMNT
+            LRSSUMMARY:CLAIMANT = G_CLAIMANT
+            End
+
+        If FUNCTION = "CHANGE" Then
+            begin
+            lrssummary:trans_type = 0
+            end
+
+        Activehelp LRSCMNT:NAME,
+                   LRSCMNT:CLAIM_NO  ;
+1001    LRSSUMMARY:CLAIMANT/displayonly tagged LINE_ITEMS;
+1002    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:TRANS_TYPE = 1
+        End
+        LRSSUMMARY:TRANS_TYPE/default  tagged LINE_ITEMS
+
+        Activehelp If LRSTRANSTYPE:DISPLAY_ON_HELP = "Y" Then
+                       LRSTRANSTYPE:TRANS_TYPE
+                   Else
+                       NULL/width=11/heading="Trans Type" ,
+                   If LRSTRANSTYPE:DISPLAY_ON_HELP = "Y" Then
+                       LRSTRANSTYPE:DESCRIPTION
+                   Else
+                       NULL/heading="Decription"/width=30 ;
+
+1003    Begin
+            Activehelp()
+            Access SFSLINE, Set SFSLINE:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                                SFSLINE:LINE_OF_BUSINESS = LRSSUMMARY:LINE_OF_BUSINESS, Generic
+        End
+        LRSSUMMARY:LOB_SUBLINE/default tagged LINE_ITEMS nochange
+        hide when lrssetup:idp_policy = "Y"
+        Begin
+        Access SFSLINE, Set SFSLINE:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                            SFSLINE:LINE_OF_BUSINESS = LRSSUMMARY:LINE_OF_BUSINESS, Generic
+        End
+
+        If LRSSUMMARY:LOB_SUBLINE <> SFSLINE:LOB_SUBLINE And
+           SFSLINE:LOB_SUBLINE <> "00" Then
+            Warning 1227
+
+        LRSSUMMARY:LOB_SUBLINE = PRSMASTER:LOB_SUBLINE
+
+        Activehelp
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            PRSMASTER:LINE_OF_BUSINESS
+        Else
+            NULL /heading="LOB"/width=4,
+
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            PRSMASTER:LOB_SUBLINE
+        Else
+            NULL /width=5/heading="Subline",
+
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            SFSLINE_ALT1:DESCRIPTION
+        Else
+            NULL /width=30/heading="Description",
+
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            PRSMASTER:TRANS_EFF
+        Else
+            NULL /mask="MM/DD/YYYY"/width=12/heading="Eff Date",
+
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            PRSMASTER:TRANS_DATE
+        Else
+            NULL/mask="MM/DD/YYYY"/width=12/heading="Trans Date",
+
+        If (PRSMASTER:POLICY_NO       = LRSSETUP:POLICY_NO And
+           PRSMASTER:TRANS_CODE      <= 16 And
+           Year(PRSMASTER:TRANS_EFF) <= Year(LRSSETUP:LOSS_DATE) And
+           PRSMASTER:TRANS_EFF       <= LRSSETUP:LOSS_DATE) Then
+            PRSMASTER:TRANS_CODE
+        Else
+            NULL/heading="Trans Code"/width=10;
+
+1003    Begin
+        access sfsline, set sfsline:company_id = lrssetup:company_id,
+                            sfsline:line_of_business = lrssetup:line_of_business, generic
+
+        Activehelp()
+        End
+        LRSSUMMARY:LOB_SUBLINE/default tagged LINE_ITEMS    nochange
+        hide when lrssetup:idp_policy = "N"
+
+        LRSSUMMARY:LOB_SUBLINE = SFSLINE:LOB_SUBLINE
+
+        Activehelp
+        if sfsline:lob_subline <> "00" then
+            sfsline:LINE_OF_BUSINESS
+        Else
+            NULL /heading="LOB"/width=4/returntofield ,
+
+        if sfsline:lob_subline <> "00" then
+            sfsline:LOB_SUBLINE
+        Else
+            NULL /width=5/heading="Subline",
+
+        if sfsline:lob_subline <> "00" then
+            SFSLINE:DESCRIPTION
+        Else
+            NULL /width=30/heading="Description" ;
+
+1003    LRSSUMMARY:LOB_SUBLINE/displayonly tagged LINE_ITEMS;
+1004    Begin
+        If FUNCTION = "APPEND" Then
+            begin
+            Activehelp ()
+            end
+
+        If FUNCTION = "CHANGE" Then
+            Begin
+            L_OLD_COL         = LRSSUMMARY:CAUSE_OF_LOSS
+            L_OLD_COL_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE
+            Activehelp ()
+            End
+        End
+        LRSSUMMARY:CAUSE_OF_LOSS tagged LINE_ITEMS nochange
+
+        LRSSUMMARY:CAUSE_LOSS_SUBLINE = SFSCAUSE:CAUSE_LOSS_SUBLINE
+        L_LINE_TYPE                   = SFSCAUSE:LINE_TYPE
+
+        Activehelp SFSCAUSE:CAUSE_OF_LOSS ,
+                   SFSCAUSE:CAUSE_LOSS_SUBLINE ,
+                   SFSCAUSE:DESCRIPTION ;
+1005    LRSSUMMARY:CAUSE_LOSS_SUBLINE/displayonly  tagged LINE_ITEMS
+        If FUNCTION = "APPEND" Then
+            Begin
+            Do SUB_CODE   -- gets lrssummary subcode to add new lrssummary record
+            Do CHECK_COL
+            If L_CHECK = "Y" Then
+                Error 1416
+            End;
+
+-- loss
+1006    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:LOSS_RESV = 0
+
+        If FUNCTION = "CHANGE" Then
+            L_OLD_LOSS_RESV = LRSSUMMARY:LOSS_RESV
+
+        End
+        LRSSUMMARY:LOSS_RESV/default tagged LINE_ITEMS
+        hide when LRSSUMMARY:TRANS_TYPE <>  1 And
+                  LRSSUMMARY:TRANS_TYPE <>  3 And
+                  LRSSUMMARY:TRANS_TYPE <>  5 And
+                  LRSSUMMARY:TRANS_TYPE <> 51 And
+                  LRSSUMMARY:TRANS_TYPE <> 53 And
+                  LRSSUMMARY:TRANS_TYPE <> 55
+
+        If LRSSUMMARY:LOSS_RESV  <> 0  And
+           LRSSUMMARY:TRANS_TYPE =  1  And
+           LRSSUMMARY:STATUS     = "C" And
+           FUNCTION              = "CHANGE" Then
+            Error "Must use trans code 51 to re-open the claim" ;
+1006    LRSSUMMARY:LOSS_RESV/displayonly tagged LINE_ITEMS;
+1007    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:LOSS_PAID = 0
+        End
+        LRSSUMMARY:LOSS_PAID/default tagged LINE_ITEMS;
+
+-- ulae
+1008    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:ULAE_RESV = 0
+
+        If FUNCTION = "CHANGE" Then
+            L_OLD_ULAE_RESV  = LRSSUMMARY:ULAE_RESV
+
+        End
+        LRSSUMMARY:ULAE_RESV/default tagged LINE_ITEMS
+        hide when LRSSUMMARY:TRANS_TYPE <>  1 And
+                  LRSSUMMARY:TRANS_TYPE <>  3 And
+                  LRSSUMMARY:TRANS_TYPE <>  5 And
+                  LRSSUMMARY:TRANS_TYPE <> 51 And
+                  LRSSUMMARY:TRANS_TYPE <> 53 And
+                  LRSSUMMARY:TRANS_TYPE <> 55
+
+        If LRSSUMMARY:ULAE_RESV  <> 0  And
+           LRSSUMMARY:TRANS_TYPE =  1  And
+           LRSSUMMARY:STATUS     = "C" And
+           FUNCTION              = "CHANGE" Then
+            Error "Must use trans code 51 to re-open the claim" ;
+1008    LRSSUMMARY:ULAE_RESV/displayonly tagged LINE_ITEMS;
+1009    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:ULAE_PAID = 0
+        End
+        LRSSUMMARY:ULAE_PAID/default tagged LINE_ITEMS;
+
+-- alae
+1010    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:ALAE_RESV = 0
+
+        If FUNCTION = "CHANGE" Then
+            L_OLD_ALAE_RESV = LRSSUMMARY:ALAE_RESV
+
+        End
+        LRSSUMMARY:ALAE_RESV  tagged LINE_ITEMS
+        hide when LRSSUMMARY:TRANS_TYPE <>  1 And
+                  LRSSUMMARY:TRANS_TYPE <>  3 And
+                  LRSSUMMARY:TRANS_TYPE <>  5 And
+                  LRSSUMMARY:TRANS_TYPE <> 51 And
+                  LRSSUMMARY:TRANS_TYPE <> 53 And
+                  LRSSUMMARY:TRANS_TYPE <> 55
+
+        If LRSSUMMARY:ALAE_RESV   <> 0  And
+           LRSSUMMARY:TRANS_TYPE  =  1  And
+           LRSSUMMARY:STATUS      = "C" And
+           FUNCTION               = "CHANGE" Then
+            Error "Must use trans code 51 to re-open the claim" ;
+1010    LRSSUMMARY:ALAE_RESV/displayonly tagged LINE_ITEMS;
+1011    Begin
+        If FUNCTION = "APPEND" Then
+            LRSSUMMARY:ALAE_PAID = 0
+        End
+        LRSSUMMARY:ALAE_PAID/default tagged LINE_ITEMS;
+1012    LRSSUMMARY:STATUS/displayonly tagged LINE_ITEMS;
+
+-- totals
+1901    L_LOSS_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1902    L_LOSS_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+1903    L_ULAE_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1904    L_ULAE_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+1905    L_ALAE_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1906    L_ALAE_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+
+} -- end of screen panel
+
+Update
+If UPDATEOK = "YES" And
+   ABORT    = "NO" Then
+    Begin
+    Do LOSS_RESV_TOTALS
+    Do ADD_DETAIL
+    FUNCTION = "redisplay"
+    End
+
+-- update reinsurance every time - this seems to work well (dlp - 03/26/2004)
+If UPDATEOK = "YES" And
+   Abort    = "NO" Then
+    Begin
+    Do PROCESS_REINSURANCE
+    End
+
+Screen Exit
+If LRSSUMMARY:COMPANY_ID > "" Then
+    G_COMPANY_ID = LRSSUMMARY:COMPANY_ID ;
+If LRSSUMMARY:CLAIM_NO > 0 Then
+    G_CLAIM_NO = LRSSUMMARY:CLAIM_NO ;
+If LRSSUMMARY:CAUSE_OF_LOSS > 0 Then
+    G_CAUSE_OF_LOSS = LRSSUMMARY:CAUSE_OF_LOSS ;
+If LRSSUMMARY:TRANS_TYPE > 0 Then
+    G_TRANS_TYPE = LRSSUMMARY:TRANS_TYPE ;
+If LRSSUMMARY:CAUSE_LOSS_SUBLINE > "" Then
+    G_CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE  ;
+If LRSSUMMARY:SUB_CODE > 0 Then
+    G_SUMMARY_SUB_CODE = LRSSUMMARY:SUB_CODE ;
+if lrssummary:claimant > "" then
+    G_CLAIMANT         = LRSSUMMARY:CLAIMANT ;
+if lrssummary:lob_subline > "" then
+    G_LOB_SUBLINE      = LRSSUMMARY:LOB_SUBLINE ;
+if lrssummary:line_of_business > 0 then
+    G_LINE_OF_BUSINESS = LRSSUMMARY:LINE_OF_BUSINESS ;
+if lrssummary:loss_resv > 0 then
+    G_SUMMARY_LOSS     = LRSSUMMARY:LOSS_RESV ;
+if lrssummary:alae_resv > 0 then
+    G_SUMMARY_ALAE     = LRSSUMMARY:ALAE_RESV ;
+if lrssummary:ulae_resv > 0 then
+    G_SUMMARY_ULAE     = LRSSUMMARY:ULAE_RESV ;
+
+Procedure Definition
+
+Procedure SUB_CODE
+Begin
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = G_COMPANY_ID ,
+                             LRSSUMMARY_ALIAS:CLAIM_NO   = G_CLAIM_NO , Approximate
+
+L_SUB = 0
+While LRSSUMMARY_ALIAS:COMPANY_ID = G_COMPANY_ID and
+      LRSSUMMARY_ALIAS:CLAIM_NO   = G_CLAIM_NO
+        begin
+        L_SUB = LRSSUMMARY_ALIAS:SUB_CODE
+
+        Next LRSSUMMARY_ALIAS
+        End
+
+LRSSUMMARY:SUB_CODE = L_SUB + 10
+End
+
+Procedure ADD_DETAIL
+Begin
+do access_lrsdetail
+if lrssummary:loss_resv <> 0 then
+    begin
+    l_vendor_no                 = 0
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 16
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = lrssummary:loss_resv - l_loss_resv_1
+    l_loss_paid                 = 0
+    l_lae_resv                  = 0
+    l_lae_paid                  = 0
+    l_misc                      = "append loss resv"
+    l_ulae                      = "N"
+    l_alae                      = "N"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_loss_resv <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+if lrssummary:loss_paid <> 0 then
+    begin
+    l_vendor_no                 = 0
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 11
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = 0
+    l_loss_paid                 = lrssummary:loss_paid - l_loss_paid_1
+    l_lae_resv                  = 0
+    l_lae_paid                  = 0
+    l_misc                      = "append loss paid"
+    l_ulae                      = "N"
+    l_alae                      = "N"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_loss_paid <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+if lrssummary:ulae_resv <> 0 then
+    begin
+    if lrssetup:vendor_no[2] = 0 then
+        l_vendor_no             = lrssetup:vendor_no[1]
+    else
+        l_vendor_no             = lrssetup:vendor_no[2]
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 16
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = 0
+    l_loss_paid                 = 0
+    l_lae_resv                  = lrssummary:ulae_resv - l_ulae_resv_1
+    l_lae_paid                  = 0
+    l_misc                      = "append ulae resv"
+    l_ulae                      = "Y"
+    l_alae                      = "N"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_lae_resv <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+if lrssummary:ulae_paid <> 0 then
+    begin
+    if lrssetup:vendor_no[2] = 0 then
+        l_vendor_no             = lrssetup:vendor_no[1]
+    else
+        l_vendor_no             = lrssetup:vendor_no[2]
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 11
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = 0
+    l_loss_paid                 = 0
+    l_lae_resv                  = 0
+    l_lae_paid                  = lrssummary:ulae_paid - l_ulae_paid_1
+    l_misc                      = "append ulae paid"
+    l_ulae                      = "Y"
+    l_alae                      = "N"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_lae_paid <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+if lrssummary:alae_resv <> 0 then
+    begin
+    if lrssetup:vendor_no[2] = 0 then
+        l_vendor_no             = lrssetup:vendor_no[1]
+    else
+        l_vendor_no             = lrssetup:vendor_no[2]
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 16
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = 0
+    l_loss_paid                 = 0
+    l_lae_resv                  = lrssummary:alae_resv - l_alae_resv_1
+    l_lae_paid                  = 0
+    l_misc                      = "append alae resv"
+    l_ulae                      = "N"
+    l_alae                      = "Y"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_lae_resv <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+if lrssummary:alae_paid <> 0 then
+    begin
+    if lrssetup:vendor_no[2] = 0 then
+        l_vendor_no             = lrssetup:vendor_no[1]
+    else
+        l_vendor_no             = lrssetup:vendor_no[2]
+    l_cause_of_loss             = lrssummary:cause_of_loss
+    l_trans_type                = 11
+    l_cause_loss_subline        = lrssummary:cause_loss_subline
+    l_loss_resv                 = 0
+    l_loss_paid                 = 0
+    l_lae_resv                  = 0
+    l_lae_paid                  = lrssummary:alae_paid - l_alae_paid_1
+    l_misc                      = "append alae paid"
+    l_ulae                      = "N"
+    l_alae                      = "Y"
+    l_subro                     = "N"
+    l_salvage                   = "N"
+    l_overpayment               = "N"
+
+    if l_lae_paid <> 0 then
+        begin
+        do lrsdetail_subcode
+        do update_lrsdetail
+        end
+    end
+
+End
+
+Procedure CHECK_LRSCMNT
+Begin
+Access LRSCMNT, Set LRSCMNT:COMPANY_ID = G_COMPANY_ID ,
+                    LRSCMNT:CLAIM_NO   = G_CLAIM_NO , Approximate
+
+L_NAME_MATCH = "N"
+while LRSCMNT:COMPANY_ID = LRSSUMMARY:COMPANY_ID and
+      LRSCMNT:CLAIM_NO = LRSSUMMARY:CLAIM_NO
+        begin
+        G_SUMMARY_SUB_CODE = LRSCMNT:SUB_CODE
+        If LRSSUMMARY:CLAIMANT = LRSCMNT:NAME[1] Then
+            L_NAME_MATCH   = "Y"
+
+        Next LRSCMNT
+        End
+
+If L_NAME_MATCH = "N" Then
+    Begin
+    G_COMPANY_ID = LRSSUMMARY:COMPANY_ID
+    G_CLAIM_NO = LRSSUMMARY:CLAIM_NO
+    G_SUMMARY_SUB_CODE = G_SUMMARY_SUB_CODE + 10
+    G_CLAIMANT_SUBCODE = G_SUMMARY_SUB_CODE
+    Display Modal Screen "lrsmt104"
+    With Initial Function "ADD|BACK"
+    LRSSUMMARY:CLAIMANT = G_CLAIMANT
+    End
+
+End
+
+procedure access_lrsdetail
+begin
+access lrsdetail, set lrsdetail:company_id = lrssummary:company_id,
+                      lrsdetail:claim_no   = lrssummary:claim_no, generic
+
+l_loss_resv_1 = 0
+l_loss_paid_1 = 0
+l_ulae_resv_1 = 0
+l_ulae_paid_1 = 0
+l_alae_resv_1 = 0
+l_alae_paid_1 = 0
+while lrsdetail:company_id = lrssummary:company_id and
+      lrsdetail:claim_no   = lrssummary:claim_no
+        begin
+        if ((lrsdetail:summary_sub_code   = lrssummary:sub_code or
+           (lrssummary:sub_code          = 10 and
+           lrsdetail:summary_sub_code   = 0)) and
+           lrsdetail:line_of_business   = lrssummary:line_of_business and
+           lrsdetail:lob_subline        = lrssummary:lob_subline and
+           lrsdetail:cause_of_loss      = lrssummary:cause_of_loss and
+           lrsdetail:cause_loss_subline = lrssummary:cause_loss_subline) then
+            begin
+            l_loss_resv_1 = l_loss_resv_1 + lrsdetail:loss_resv
+            l_loss_paid_1 = l_loss_paid_1 + lrsdetail:loss_paid
+            if lrsdetail:ulae = "Y" then
+                begin
+                l_ulae_resv_1 = l_ulae_resv_1 + lrsdetail:lae_resv
+                l_ulae_paid_1 = l_ulae_paid_1 + lrsdetail:lae_paid
+                end
+            if lrsdetail:alae = "Y" then
+                begin
+                l_alae_resv_1 = l_alae_resv_1 + lrsdetail:lae_resv
+                l_alae_paid_1 = l_alae_paid_1 + lrsdetail:lae_paid
+                end
+
+            end
+
+        next lrsdetail
+        end
+
+end
+
+Procedure LOSS_RESV_TOTALS
+Begin
+L_LOSS_RESV_TOTAL       = 0
+L_LOSS_PAID_TOTAL       = 0
+L_L_PD_TOT              = 0
+L_ULAE_RESV_TOTAL       = 0
+L_ULAE_PAID_TOTAL       = 0
+L_U_PD_TOT              = 0
+L_ALAE_RESV_TOTAL       = 0
+L_ALAE_PAID_TOTAL       = 0
+L_A_PD_TOT              = 0
+
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = lrssummary:COMPANY_ID,
+                             LRSSUMMARY_ALIAS:CLAIM_NO   = lrssummary:CLAIM_NO, Generic
+
+while LRSSUMMARY_ALIAS:COMPANY_ID = lrssummary:COMPANY_ID  and
+      LRSSUMMARY_ALIAS:CLAIM_NO   = lrssummary:CLAIM_NO
+        begin
+        L_LOSS_PAID_TOTAL       = L_LOSS_PAID_TOTAL + LRSSUMMARY_ALIAS:LOSS_PAID
+        L_L_PD_TOT              = LRSSUMMARY_ALIAS:LOSS_PAID
+        L_ULAE_PAID_TOTAL       = L_ULAE_PAID_TOTAL + LRSSUMMARY_ALIAS:ULAE_PAID
+        L_U_PD_TOT              = LRSSUMMARY_ALIAS:ULAE_PAID
+        L_ALAE_PAID_TOTAL       = L_ALAE_PAID_TOTAL + LRSSUMMARY_ALIAS:ALAE_PAID
+        L_A_PD_TOT              = LRSSUMMARY_ALIAS:ALAE_PAID
+        L_LOSS_RESV_TOTAL       = L_LOSS_RESV_TOTAL + LRSSUMMARY_ALIAS:LOSS_RESV
+        L_ULAE_RESV_TOTAL       = L_ULAE_RESV_TOTAL + LRSSUMMARY_ALIAS:ULAE_RESV
+        L_ALAE_RESV_TOTAL       = L_ALAE_RESV_TOTAL + LRSSUMMARY_ALIAS:ALAE_RESV
+        L_L_PD_TOT              = 0
+        L_U_PD_TOT              = 0
+        L_A_PD_TOT              = 0
+
+        Next LRSSUMMARY_ALIAS
+        End
+
+End
+
+Procedure CHECK_COL
+Begin
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = LRSSUMMARY:COMPANY_ID ,
+                             LRSSUMMARY_ALIAS:CLAIM_NO   = LRSSUMMARY:CLAIM_NO , Generic
+
+L_CHECK = "N"
+while LRSSUMMARY_ALIAS:COMPANY_ID = LRSSUMMARY:COMPANY_ID and
+      LRSSUMMARY_ALIAS:CLAIM_NO   = LRSSUMMARY:CLAIM_NO and
+      L_CHECK                     = "Y"
+        begin
+        If LRSSUMMARY_ALIAS:TRANS_TYPE         = LRSSUMMARY:TRANS_TYPE And
+           LRSSUMMARY_ALIAS:LINE_OF_BUSINESS   = LRSSUMMARY:LINE_OF_BUSINESS And
+           LRSSUMMARY_ALIAS:LOB_SUBLINE        = LRSSUMMARY:LOB_SUBLINE And
+           LRSSUMMARY_ALIAS:CAUSE_OF_LOSS      = LRSSUMMARY:CAUSE_OF_LOSS And
+           LRSSUMMARY_ALIAS:CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE And
+           L_LINE_TYPE Not One Of "L", "A" Then
+            L_CHECK = "Y"
+        Else
+            L_CHECK = "N"
+
+        Next LRSSUMMARY_ALIAS
+        End
+
+End
+
+Procedure PROCESS_REINSURANCE
+Begin
+L_REIN_COMPANY_ID = LRSSUMMARY:COMPANY_ID/spacefill
+L_REINS_OUTFILE   = "lrsup600.out"
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSUMMARY:COMPANY_ID,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSUMMARY:CLAIM_NO,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSUMMARY:LINE_OF_BUSINESS,"<NL>")
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSUMMARY:LOB_SUBLINE,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSUMMARY:CAUSE_OF_LOSS,"<NL>")
+Writefile (L_REINS_OUTFILE,"%s%s",LRSSUMMARY:CAUSE_LOSS_SUBLINE,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSUMMARY:TRANS_TYPE,"<NL>")
+Writefile (L_REINS_OUTFILE,"%n%s",LRSSUMMARY:SUB_CODE,"<nl>")
+Closefile (L_REINS_OUTFILE)
+
+L_REINS_PROGRAM = "lrsup600"
+
+If L_REINS_PROGRAM Not One Of "UNSET" Then
+    Begin
+    If SFSCOMPANY:DEBUG_MODE = 0 Then
+        Begin
+        Proc ("lrscededwrk.mk")/noconsole
+        Proc ("csbatch %s",L_REINS_PROGRAM)/noconsole
+        End
+    Else
+        Begin
+        Proc ("lrscededwrk.mk")/noconsole -- just file creating, no need to display
+        Proc ("csbatch %s",L_REINS_PROGRAM)
+        End
+    End
+
+Deletefile (L_REINS_OUTFILE)
+End
+
+procedure lrsdetail_subcode
+begin
+access lrsdetail, set lrsdetail:company_id = lrssummary:company_id,
+                      lrsdetail:claim_no   = lrssummary:claim_no, generic
+
+l_detail_subcode = 0
+while lrsdetail:company_id = lrssummary:company_id and
+      lrsdetail:claim_no   = lrssummary:claim_no
+        begin
+        l_detail_subcode = lrsdetail:sub_code
+
+        next lrsdetail
+        end
+
+l_detail_subcode = l_detail_subcode + 10
+end
+
+procedure update_lrsdetail
+begin
+add lrsdetail
+    begin
+    lrsdetail:company_id                =       lrssummary:company_id/raw
+    lrsdetail:claim_no                  =       lrssummary:claim_no
+    lrsdetail:sub_code                  =       l_detail_subcode
+    if lrssummary:company_id = "LEBINS" then
+        lrsdetail:trans_date            =       01.01.2006
+    else
+        lrsdetail:trans_date            =       todaysdate
+    lrsdetail:batch                     =       1
+    lrsdetail:line_of_business          =       lrssummary:line_of_business
+    lrsdetail:lob_subline               =       lrssummary:lob_subline/raw
+    lrsdetail:lob_ext                   =       ""/raw
+    lrsdetail:vendor_no                 =       l_vendor_no
+    lrsdetail:cause_of_loss             =       l_cause_of_loss
+    lrsdetail:cause_loss_subline        =       l_cause_loss_subline/raw
+    lrsdetail:trans_code                =       l_trans_type
+    lrsdetail:reins_co                  =       0
+    lrsdetail:loss_resv                 =       l_loss_resv
+    lrsdetail:loss_paid                 =       l_loss_paid
+    lrsdetail:lae_resv                  =       l_lae_resv
+    lrsdetail:lae_paid                  =       l_lae_paid
+    lrsdetail:misc                      =       l_misc/raw
+    lrsdetail:check_no                  =       ""/raw
+    lrsdetail:check_date                =       00.00.0000
+    lrsdetail:select                    =       ""/raw
+    lrsdetail:system_date               =       todaysdate
+    lrsdetail:ulae                      =       l_ulae/raw
+    lrsdetail:alae                      =       l_alae/raw
+    lrsdetail:user_id                   =       username/raw
+    lrsdetail:subro                     =       l_subro/raw
+    lrsdetail:salvage                   =       l_salvage/raw
+    lrsdetail:summary_sub_code          =       lrssummary:sub_code
+    lrsdetail:lrscheck_sub_code         =       0
+    lrsdetail:reopened                  =       l_reopened/raw
+    lrsdetail:overpayment               =       l_overpayment/raw
+    lrsdetail:payment_correction        =       "N"/raw
+    lrsdetail:record_status             =       ""/raw
+    lrsdetail:original_sub_code         =       0
+    lrsdetail:original_user_id          =       ""/raw
+    lrsdetail:preload                   =       1
+    lrsdetail:expansion                 =       ""/raw
+    end
+
+end
+
+Procedure Show_claimant
+begin
+
+g_company_id = lrssummary:company_id
+g_claim_no   = lrssummary:claim_no
+display modal screen "lrsmt104"
+
+end
+
+Procedure SCIPS_MACRO
+Begin
+I_SCIPS_SELECT = "Y"
+
+If I_SCIPS_SELECT = "Y" Then
+    Begin
+    I_SCIPS_PARAM_NAME = Lowercase(Trun(PROGRAMID)) + Trun(Str(PID)) + ".par"
+    Writefile(I_SCIPS_PARAM_NAME,"%n<nl>",LRSSETUP:CLAIM_NO)
+    End
+
+Include "lrsstatusprt1.pro"
+
+End

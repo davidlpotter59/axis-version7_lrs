@@ -1,0 +1,71 @@
+%%
+Screen
+        Name = "Lrsmt108" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic" ;
+        Highlite = Underscore ;
+        Windowtitle = "%a     %s Catastrophe Maintenance - Ver 7.00     %m";
+        Domain = "LRSCAT";
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_CAT_NO[5] ;
+
+        global string g_company_id[10] ;
+
+        Access LRSCAT,
+           Set lrscat:CAT_NO = G_CAT_NO ;
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 11,80
+{
+%%
+                                                        ______________
+*------------------------------------------------------------------------------*
+| Cat No:          _____                                                       |
+| Effective Date:  __________                                                  |
+| Expiration Date: __________                                                  |
+*------------------------------------------------------------------------------*
+| Description:     ______________________________                              |
+| Received:        __________                                                  |
+| Grace Period:    __________                                                  |
+*------------------------------------------------------------------------------*
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSCAT:CAT_NO                           Mandatory
+        G_CAT_NO = LRSCAT:CAT_NO ;
+401     LRSCAT:EFF_DATE                        Mandatory;
+501     LRSCAT:EXP_DATE;
+701     LRSCAT:DESCRIPTION;
+801     LRSCAT:RECEIVED;
+901     LRSCAT:GRACE_PERIOD;
+
+} -- end of screen panel
+
+Screen Exit
+If LRSCAT:CAT_NO > 0 Then G_CAT_NO = LRSCAT:CAT_NO ;
+
+End

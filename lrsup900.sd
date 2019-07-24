@@ -1,0 +1,276 @@
+%%
+Program
+        Name = "lrsup900" ;
+        Type = "File" ;
+        Domain = "FLAT" ;
+        Padcharacter = Space ;
+
+/* program will update the lrssummary file with the lrsdetail
+   transaction values
+
+   this program will also fix any detail records that have
+   the wrong summary_sub_code pointer set
+*/
+
+        Number COUNTER = 0;
+        String L_COMPANY_ID[10]="";
+        String L_ENTER[1];
+        String L_REINS_OUTFILE[15];
+        String L_REIN_COMPANY_ID[10]="";
+        String L_REINS_PROGRAM[12]="";
+        String L_REINS_SCREEN[12]="";
+        Unsigned Ascii Number G_CLAIM_NO[11];
+        String G_COMPANY_ID[10];
+        Wdate L_STARTING_DATE,
+              L_ENDING_DATE;
+
+Screen Entry
+Write ("<014>")
+L_STARTING_DATE = Date(COMMANDLINE[1,8])
+L_ENDING_DATE   = Date(COMMANDLINE[9,16])
+G_CLAIM_NO      = Val(COMMANDLINE[17,27])
+G_COMPANY_ID    = uppercase(COMMANDLINE[28,37])
+
+If L_STARTING_DATE = 00.00.0000 Then
+Begin
+    L_STARTING_DATE = TODAYSDATE
+    L_ENDING_DATE   = TODAYSDATE
+End
+
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+Begin
+    Write ("<014>")
+    Write ("%c%s",01001,"Counter ")
+    Write ("%c%s%n",02001,"Claim Number  = ",g_claim_no)
+    Write ("%c%s%s",05001,"Company ID    = ",g_company_id)
+    Write ("%c%s%d",07001,"Starting Date = ",L_STARTING_DATE)
+    Write ("%c%s%d",09001,"Ending Date   = ",L_ENDING_DATE)
+End
+
+If G_CLAIM_NO = 0 Then
+Begin
+    Do CLEAR_LRSSUMMARY_TOTALS
+    Do FIX_DETAIL_RECORDS
+    Do UPDATE_LRSSUMMARY
+End
+Else
+Begin
+    Do CLEAR_LRSSUMMARY_TOTALS_CLAIM_NO
+    Do FIX_DETAIL_RECORDS_CLAIM_NO
+    Do UPDATE_LRSSUMMARY_CLAIM_NO
+End
+
+
+Update
+
+Screen Exit
+Write ("%c%s%n",15001,"Update is Complete......",COUNTER)
+
+Procedure Definition
+
+Procedure CLEAR_LRSSUMMARY_TOTALS
+Begin
+
+L_COMPANY_ID = ""
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = L_COMPANY_ID, Approximate
+
+While LRSSUMMARY_ALIAS:ERRORNUMBER = 0
+Begin
+    Change LRSSUMMARY_ALIAS
+    Begin
+        LRSSUMMARY_ALIAS:LOSS_RESV = 0.00
+        LRSSUMMARY_ALIAS:LOSS_PAID = 0.00
+        LRSSUMMARY_ALIAS:ALAE_RESV = 0.00
+        LRSSUMMARY_ALIAS:ALAE_PAID = 0.00
+        LRSSUMMARY_ALIAS:ULAE_RESV = 0.00
+        LRSSUMMARY_ALIAS:ULAE_PAID = 0.00
+    End
+    Next LRSSUMMARY_ALIAS
+
+End
+
+End
+
+
+Procedure CLEAR_LRSSUMMARY_TOTALS_CLAIM_NO
+Begin
+
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = G_COMPANY_ID,
+                             LRSSUMMARY_ALIAS:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+While LRSSUMMARY_ALIAS:COMPANY_ID = G_COMPANY_ID And
+      LRSSUMMARY_ALIAS:CLAIM_NO   = G_CLAIM_NO
+Begin
+    Change LRSSUMMARY_ALIAS
+    Begin
+        LRSSUMMARY_ALIAS:LOSS_RESV = 0.00
+        LRSSUMMARY_ALIAS:LOSS_PAID = 0.00
+        LRSSUMMARY_ALIAS:ALAE_RESV = 0.00
+        LRSSUMMARY_ALIAS:ALAE_PAID = 0.00
+        LRSSUMMARY_ALIAS:ULAE_RESV = 0.00
+        LRSSUMMARY_ALIAS:ULAE_PAID = 0.00
+    End
+    Next LRSSUMMARY_ALIAS
+
+End
+
+End
+
+Procedure FIX_DETAIL_RECORDS
+Begin
+
+L_COMPANY_ID = ""
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = L_COMPANY_ID, Approximate
+
+While LRSDETAIL:ERRORNUMBER = 0
+Begin
+   If LRSDETAIL:SUMMARY_SUB_CODE = 0 Then
+   Begin
+   Change LRSDETAIL
+   Begin
+       LRSDETAIL:SUMMARY_SUB_CODE = 10
+   End
+
+   End
+Next LRSDETAIL
+End
+
+End
+
+Procedure FIX_DETAIL_RECORDS_CLAIM_NO
+Begin
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = G_COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+While LRSDETAIL:COMPANY_ID = G_COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = G_CLAIM_NO
+Begin
+   If LRSDETAIL:SUMMARY_SUB_CODE = 0 Then
+   Begin
+   Change LRSDETAIL
+   Begin
+       LRSDETAIL:SUMMARY_SUB_CODE = 10
+   End
+
+   End
+Next LRSDETAIL
+End
+
+End
+
+Procedure UPDATE_LRSSUMMARY
+Begin
+
+L_COMPANY_ID  = ""
+
+Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID = L_COMPANY_ID, Approximate
+
+
+While LRSSUMMARY:ERRORNUMBER = 0
+Begin
+    Do PROCESS_LRSDETAIL
+    Next LRSSUMMARY
+End
+
+End
+
+Procedure UPDATE_LRSSUMMARY_CLAIM_NO
+Begin
+
+Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID = G_COMPANY_ID,
+                       LRSSUMMARY:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+While LRSSUMMARY:COMPANY_ID = G_COMPANY_ID And
+      LRSSUMMARY:CLAIM_NO   = G_CLAIM_NO
+      Begin
+         Do PROCESS_LRSDETAIL
+         Next LRSSUMMARY
+      End
+
+End
+
+Procedure PROCESS_LRSDETAIL
+Begin
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO, Approximate
+
+While LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO
+      Begin
+      If ((LRSDETAIL:TRANS_CODE < 30 or
+         lrsdetail:trans_code > 89) And
+         LRSDETAIL:TRANS_DATE >= L_STARTING_DATE And
+         LRSDETAIL:TRANS_DATE <= L_ENDING_DATE  And
+         LRSDETAIL:SUMMARY_SUB_CODE = LRSSUMMARY:SUB_CODE) Then
+      Begin
+
+         Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID         = LRSSUMMARY:COMPANY_ID,
+                                      LRSSUMMARY_ALIAS:CLAIM_NO           = LRSSUMMARY:CLAIM_NO,
+                                      LRSSUMMARY_ALIAS:LINE_OF_BUSINESS   = LRSSUMMARY:LINE_OF_BUSINESS,
+                                      LRSSUMMARY_ALIAS:LOB_SUBLINE        = LRSSUMMARY:LOB_SUBLINE,
+                                      LRSSUMMARY_ALIAS:CAUSE_OF_LOSS      = LRSSUMMARY:CAUSE_OF_LOSS,
+                                      LRSSUMMARY_ALIAS:CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE,
+                                      LRSSUMMARY_ALIAS:TRANS_TYPE         = LRSSUMMARY:TRANS_TYPE,
+                                      LRSSUMMARY_ALIAS:SUB_CODE           = LRSSUMMARY:SUB_CODE, Approximate
+
+        If LRSSUMMARY_ALIAS:COMPANY_ID         = LRSSUMMARY:COMPANY_ID And
+           LRSSUMMARY_ALIAS:CLAIM_NO           = LRSSUMMARY:CLAIM_NO And
+           LRSSUMMARY_ALIAS:LINE_OF_BUSINESS   = LRSSUMMARY:LINE_OF_BUSINESS And
+           LRSSUMMARY_ALIAS:LOB_SUBLINE        = LRSSUMMARY:LOB_SUBLINE And
+           LRSSUMMARY_ALIAS:CAUSE_OF_LOSS      = LRSSUMMARY:CAUSE_OF_LOSS And
+           LRSSUMMARY_ALIAS:CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE And
+           LRSSUMMARY_ALIAS:TRANS_TYPE         = LRSSUMMARY:TRANS_TYPE And
+           LRSSUMMARY_ALIAS:SUB_CODE           = LRSSUMMARY:SUB_CODE Then
+           Begin
+           Change LRSSUMMARY_ALIAS
+           Begin
+               LRSSUMMARY_ALIAS:TRANS_DATE   = LRSDETAIL:TRANS_DATE
+               lrssummary_alias:synchronized = 1
+               lrssummary_alias:synchronized_date = todaysdate
+
+/* reserves */
+               LRSSUMMARY_ALIAS:LOSS_RESV    = LRSSUMMARY_ALIAS:LOSS_RESV + LRSDETAIL:LOSS_RESV
+               If LRSDETAIL:ALAE = "Y" Then
+               Begin
+                   LRSSUMMARY_ALIAS:ALAE_RESV = LRSSUMMARY_ALIAS:ALAE_RESV + LRSDETAIL:LAE_RESV
+               End
+
+               If LRSDETAIL:ULAE = "Y" Then
+               Begin
+                   LRSSUMMARY_ALIAS:ULAE_RESV = LRSSUMMARY_ALIAS:ULAE_RESV + LRSDETAIL:LAE_RESV
+               End
+
+           If LRSDETAIL:TRANS_DATE >= L_STARTING_DATE Then
+           Begin
+               LRSSUMMARY_ALIAS:LOSS_PAID    = LRSSUMMARY_ALIAS:LOSS_PAID + LRSDETAIL:LOSS_PAID
+
+               If LRSDETAIL:ALAE = "Y" Then
+               Begin
+                   LRSSUMMARY_ALIAS:ALAE_PAID = LRSSUMMARY_ALIAS:ALAE_PAID + LRSDETAIL:LAE_PAID
+               End
+
+               If LRSDETAIL:ULAE = "Y" Then
+               Begin
+                   LRSSUMMARY_ALIAS:ULAE_PAID = LRSSUMMARY_ALIAS:ULAE_PAID + LRSDETAIL:LAE_PAID
+               End
+
+           End
+
+           End  -- end of change
+
+           End  -- end of condition check
+
+           End
+
+           Next LRSDETAIL
+
+           End
+
+End
+
+End -- end of program

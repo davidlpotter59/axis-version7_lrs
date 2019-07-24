@@ -1,0 +1,63 @@
+%%
+Screen
+        Name = "lrsmt109" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Loss Control File - Ver 7.00     %m" ;
+        Domain = "LRSCONTROL" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 12,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________ ______________________________                  |
+| Line Of Business: ____       ________________________________________        |
+*------------------------------------------------------------------------------*
+| Account Number:   _______________                                            |
+| Description:      _____________________________________________              |
+*------------------------------------------------------------------------------*
+| Lrssuffix:        __                                                         |
+*------------------------------------------------------------------------------*
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSCONTROL:COMPANY_ID                   Mandatory
+        include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     LRSCONTROL:LINE_OF_BUSINESS             Mandatory
+        include "linehlp.inc"
+402     SFSLINE:DESCRIPTION/displayonly;
+601     LRSCONTROL:ACCOUNT;
+701     APSACCOUNT:DESCRIPTION/displayonly ;
+901     LRSCONTROL:LRSSUFFIX;
+
+} -- end of screen panel
+
+End

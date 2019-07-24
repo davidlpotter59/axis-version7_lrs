@@ -1,0 +1,65 @@
+%%
+Screen
+        Name = "lrsmt112" ;
+        Type = "Detail" ;
+        padcharacter = space;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Location File - Ver 7.00     %m" ;
+        domain = "lrslocation" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSLOCATION,
+           Set LRSLOCATION:COMPANY_ID = G_COMPANY_ID ,
+               LRSLOCATION:CLAIM_NO   = G_CLAIM_NO ;
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 9, 80
+{
+%%
+                                                        ______________
+*------------------------------------------------------------------------------*
+| Company Id:           __________   ________________________________________  |
+| Claim Number:         ___________                                            |
+| Description:                                                                 |
+| ___________________________________________________________________________  |
+| Allow Them To Change: _                                                      |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSLOCATION:COMPANY_ID                  Mandatory
+        include "companyhlp.inc"
+302     trun(sfscompany:name[1]) ;
+401     LRSLOCATION:CLAIM_NO                    Mandatory;
+601     LRSLOCATION:DESCRIPTION;
+701     LRSLOCATION:ALLOW_THEM_TO_CHANGE/checkbox/values="0,1" ;
+
+} -- end of screen panel
+
+End

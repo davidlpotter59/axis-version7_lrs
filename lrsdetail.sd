@@ -1,0 +1,68 @@
+Cyberscreen System                                     Function [____________]
+Screen 1. LRSDETAIL Update Screen
+ 1. Company Id:            __________  19. Loss Resv:            __________
+ 2. Claim Number:          ___________ 20. Loss Paid:         _____________
+ 3. Sub Code:                     ____ 21. Lae Resv:                _______
+ 4. Transaction Date:      __________  22. Lae Paid:             __________
+%%
+Screen
+        Name = "Lrsdetail" ;
+        Type = "Detail" ;
+        Padcharacter = space ;
+        Highlight = underscore ;
+        errortype = nolock ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+
+        Access LRSDETAIL,
+           Set LRSDETAIL:COMPANY_ID = G_COMPANY_ID ,
+               LRSDETAIL:CLAIM_NO = G_CLAIM_NO ,
+               LRSDETAIL:SUB_CODE = G_SUB_CODE ;
+
+
+        Include "STDKEYS.INC"
+
+Functions
+        Add;            /* Add a record */
+        Change;         /* Change an existing record */
+        Delete;         /* Delete an existing record */
+
+        Find ;          /* Select a record using an exact key */
+        Search;         /* Select a record using an approximate key */
+        Next;           /* Display the next record(s) in key sequence */
+        Previous;       /* Display the previous record(s) in key sequence */
+        View;           /* View the contents of freetext fields */
+
+        Page/noreturn;  /* Display a different page - no going back */
+
+"Back"  Return;         /* Back to previous screen */
+"Exit"  Return;
+        Return;
+
+"Bye"   Stop;           /* Terminate this session */
+        Stop;
+
+        Print;          /* Print the screen on the default printer */
+"Cq"    Proc "CQ";      /* Enter Cyberquery */
+"Cli"   Proc ":CLI";    /* Push to the CLI */
+
+Fields
+        FUNCTION ;
+301     LRSDETAIL:COMPANY_ID                    Mandatory;
+401     LRSDETAIL:CLAIM_NO                      Mandatory;
+501     LRSDETAIL:SUB_CODE                      Mandatory;
+601     LRSDETAIL:TRANS_DATE                    Mandatory;
+302     LRSDETAIL:LOSS_RESV;
+402     LRSDETAIL:LOSS_PAID;
+502     LRSDETAIL:LAE_RESV;
+602     LRSDETAIL:LAE_PAID;
+
+Screen Exit
+        If LRSDETAIL:COMPANY_ID > "" Then G_COMPANY_ID = LRSDETAIL:COMPANY_ID ;
+        If LRSDETAIL:CLAIM_NO > 0 Then G_CLAIM_NO = LRSDETAIL:CLAIM_NO ;
+        If LRSDETAIL:SUB_CODE > 0 Then G_SUB_CODE = LRSDETAIL:SUB_CODE ;
+
+
+End

@@ -1,0 +1,103 @@
+%%
+Screen
+        Name = "lrsin01a" ;
+        Type = "Multiline"  ;
+        Repeat LINE_ITEMS, 10 Times ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize="dynamic" ;
+        Windowtitle = "%a,     %s Claim list for given Policy Number - Ver. 7.00     %m" ;
+        Domain = "LRSSETUP" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_POLICY_NO[9];
+
+        Local String L_STATUS[10] ;
+
+        Access LRSSETUP, Set LRSSETUP:POLICY_NO = G_POLICY_NO , Using Second Index, Generic
+
+        Include "inqkeys.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+disable(add_fn)
+disable(change_fn)
+disable(delete_fn)
+
+screen at 2,1 to 21,108
+{
+%%
+                                                        _______________
+*---------------------------------------------------------------------------------------------------------*
+| Company ID:   ___________ __________________________________________________                            |
+| Policy No:    _________   Effective Date: __________                                                    |
+*---------------------------------------------------------------------------------------------------------*
+|   Claim No   Loss Date  Reported    Cause Of    Loss Paid        ULAE Paid      ALAE PAID      Status   |
+|                           Date       Loss                                                               |
+| ___________ __________  __________  ____ ___  ______________  ______________  ______________ __________ |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+|                                                                                                         |
+*---------------------------------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext;
+301     LRSSETUP:COMPANY_ID/displayonly ;
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     LRSSETUP:POLICY_NO /displayonly ;
+402     LRSSETUP:EFF_DATE/displayonly ;
+
+801     LRSSETUP:CLAIM_NO/displayonly             tagged LINE_ITEMS;
+802     LRSSETUP:LOSS_DATE /displayonly           tagged LINE_ITEMS;
+803     LRSSETUP:REPORTED_DATE/displayonly        tagged LINE_ITEMS;
+804     LRSSETUP:CAUSE_OF_LOSS/displayonly        tagged LINE_ITEMS;
+805     LRSSETUP:CAUSE_LOSS_SUBLINE/displayonly   tagged LINE_ITEMS;
+806     begin
+        access lrssummary, set lrssummary:company_id = lrssetup:company_id,
+                               lrssummary:claim_no   = lrssetup:claim_no, generic
+        end
+        LRSSUMMARY:LOSS_PAID/displayonly          tagged LINE_ITEMS;
+807     LRSSUMMARY:ULAE_PAID/displayonly          tagged LINE_ITEMS;
+808     LRSSUMMARY:ALAE_PAID/displayonly          tagged LINE_ITEMS;
+809     Begin
+        Switch(LRSSETUP:STATUS)
+          Case "C" : L_STATUS = "Closed"
+          Case "R" : L_STATUS = "Re-Opened"
+          Default  : L_STATUS = "Open"
+          End
+        End
+        L_STATUS/displayonly                      tagged LINE_ITEMS;
+
+} -- end of screen panel
+
+End

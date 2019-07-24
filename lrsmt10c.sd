@@ -1,0 +1,46 @@
+%%
+Screen
+        Name = "lrsmt10c" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic";
+        highlight = underscore ;
+        Windowtitle = "%a     %s Reinsurance Company - Ver 7.00     %m";
+        Domain = "LRSSETUP" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10];
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11],
+                                     G_REINS_CO[6] ;
+
+        Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID,
+                             LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Generic;
+
+        Include "stdkeys7.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+screen at 2,1 to 5,80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+| Which Reinsurnce Company? ______  ______________________________             |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     G_REINS_CO
+
+        Activehelp SFSREINSCO:REINS_CO,
+                   sfsreinsco:NAME;
+302     SFSREINSCO:NAME[1]/displayonly ;
+
+} -- end of screen panel
+
+End

@@ -1,0 +1,169 @@
+%%
+Screen
+        Name = "lrsmt01b" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Windowtitle = "%a     %s Loss Reserve Question - Ver 7.00     %m";
+        Screensize = "dynamic"
+        Domain = "LRSSETUP" ;
+        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10],
+                      G_YESNO[1] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Global Signed Ascii Number G_AMOUNT[8],
+                                   G_ULAE[8],
+                                   G_ALAE[8] ;
+
+        Local String L_QUESTION[50],
+                     l_continue[2],
+                     l_minimum_message[100],
+                     l_vehicle[1] ;
+
+        Access LRSSETUP,
+           Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+               LRSSETUP:CLAIM_NO   = G_CLAIM_NO ;
+
+        Include "stdkeys7.inc"
+
+style definition
+
+        include "styles.inc"
+
+functions
+
+        include "stdfunc7.inc"
+
+menu definition
+
+        include "stdmenu7.inc"
+}
+
+toolbar definition
+
+        include "stdtoolbar7.inc"
+}
+
+
+Screen Entry
+G_ULAE = 0
+G_ALAE = 0
+
+screen at 2,1 to 8, 80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+| Do you want to use the Loss Reserve Default file?        _                   |
+|                                                                              |
+| __________________________________________________       _________           |
+*------------------------------------------------------------------------------*
+| ULAE Reserve Default:  _________   ALAE Reserve Default: _________           |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+
+501     Begin
+           access lrslocation, set lrslocation:company_id = g_company_id,
+                                   lrslocation:claim_no = g_claim_no, generic
+
+           if lrslocation:description = "Vehicle Not Listed" then
+             begin
+                l_vehicle = "Y"
+                l_question = "Vehicle Not Listed"
+             end
+           else
+                L_QUESTION = "This is the default NOW"
+        end
+        L_QUESTION/displayonly ;
+502     Begin
+          if l_vehicle = "Y" then
+            begin
+                l_minimum_message = "Vehicle Not Listed on Policy"
+                l_continue = dialog("VEHICLE","warning.bmp",trun(l_minimum_message),"OK")
+               g_amount = 0
+            end
+          else
+            begin
+              if G_YESNO = "N" then
+                  G_AMOUNT = LRSRESV:CASE_AMOUNT
+            end
+        End
+        G_AMOUNT /displayonly ;
+701     begin
+        if lrsresv:ulae = "Y" then
+            g_ulae = lrsresv:lae_amount
+        end
+        g_ulae/displayonly;
+702     begin
+        if lrsresv:alae = "Y" then
+            g_alae = lrsresv:lae_amount
+        end
+        g_alae/displayonly;
+
+301     begin
+        if function = "CHANGE" then
+            G_YESNO = "N"
+        end
+        g_YESNO/default/upper/checkbox/values="N,Y"
+        if L_Vehicle = "Y" then
+          begin
+            g_amount = 0
+            g_yesno = "N"
+          end ;
+
+501     BEGIN
+        If FUNCTION = "CHANGE" Then
+            Begin
+            if l_vehicle = "N" then
+              begin
+                If G_YESNO = "N" Then
+                    L_QUESTION = "This is the default NOW"
+                Else
+                      L_QUESTION = "Since your answer is NO Enter the new amount."
+              end
+           End
+        END
+        L_QUESTION/displayonly
+        Hide when G_YESNO = "Y";
+502     Begin
+        If FUNCTION = "CHANGE" Then
+            begin
+            if l_vehicle = "N" then
+               begin
+                If G_YESNO = "N" Then
+                    G_AMOUNT = LRSRESV:CASE_AMOUNT
+               end
+            end
+        End
+        G_AMOUNT/default /mask="$$,$$$,$$9"
+        Hide when G_YESNO = "Y" ;
+701     Begin
+        If FUNCTION = "CHANGE" Then
+            begin
+            If G_YESNO = "N" and
+               lrsresv:ulae = "Y" Then
+                G_ULAE = LRSRESV:LAE_amount
+            end
+        End
+        G_ULAE/default
+        hide when g_yesno = "Y" ;
+702     Begin
+        If FUNCTION  = "CHANGE" Then
+            begin
+            if g_yesno = "N" and
+               lrsresv:alae = "Y" then
+                g_alae = lrsresv:lae_amount
+            end
+        End
+        G_ALAE/default
+        hide when g_yesno = "Y" ;
+
+} -- end of screen panel
+
+End

@@ -1,0 +1,296 @@
+%%
+Program
+        Name = "lrsup101" ;
+        Type = "File" ;
+        Domain = "FLAT" ;
+        Padcharacter = Space ;
+
+        Number COUNTER = 0;
+
+        Unsigned Ascii Number G_CLAIM_NO[11]=0/decimals=0;
+
+        String L_COMPANY_ID[10]="",
+               G_COMPANY_ID[10],
+               L_ENTER[1];
+
+        Unsigned Ascii Number L_SUB_CODE[4]=0;
+
+        Signed Ascii Number L_HOLD_ULAE_RESV[5];
+        Signed Ascii Number L_HOLD_ULAE_PAID[7]/decimals=2;
+        Signed Ascii Number L_HOLD_ALAE_RESV[5];
+        Signed Ascii Number L_HOLD_ALAE_PAID[7]/decimals=2;
+        Signed Ascii Number L_HOLD_CLOSING_ULAE_RESV[5];
+        Signed Ascii Number L_HOLD_CLOSING_ALAE_RESV[5];
+
+Initialisation
+
+G_CLAIM_NO   = Val(COMMANDLINE[1,11])
+G_COMPANY_ID = Uppercase(COMMANDLINE[13,22])/spacefill
+
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+Begin
+    Write ("<014>")
+    Write ("%c%s"  ,01001,"Processing lrsup101 ----- Please wait!")
+End
+
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+                     LRSSETUP:CLAIM_NO   = G_CLAIM_NO
+
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = G_COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+While LRSDETAIL:COMPANY_ID = G_COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = G_CLAIM_NO
+      Begin
+      /* read a record then go write that record out with new data */
+
+      If LRSDETAIL:RECORD_STATUS Not One Of "D","R" And
+         LRSDETAIL:USER_ID       Not One Of "~~~~~~" Then -- deleted transaction
+      Begin
+          Do CREATE_NEW_TRANSACTION             -- creates reversing transactions
+          Do UPDATE_STATUS                      -- record_status will become "D"
+          Do CREATE_NEW_REPLACEMENT_TRANSACTION -- read from lrssetup to get newer values
+      End -- end of record_status checking
+
+COUNTER = COUNTER + 1
+
+Write ("%c%s%n",05010,"Counter ",COUNTER)
+
+Next LRSDETAIL
+
+End -- end of while
+
+Do CLEAR_USER_ID
+
+Do UPDATE_LRSSUMMARY_ALT
+
+Update
+
+Screen Exit
+
+Write ("%c%s%n",15001,"Lrsup101 update is Compete......",COUNTER)
+
+Procedure Definition
+
+Procedure CREATE_NEW_TRANSACTION
+Begin
+
+L_COMPANY_ID = G_COMPANY_ID
+
+Do GET_LRSDETAIL_SUB_CODE
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO,
+                          LRSDETAIL_ALT:SUB_CODE   = L_SUB_CODE
+
+If LRSDETAIL_ALT:COMPANY_ID <> LRSDETAIL:COMPANY_ID Or
+   LRSDETAIL_ALT:CLAIM_NO   <> LRSDETAIL:CLAIM_NO  Or
+   LRSDETAIL_ALT:SUB_CODE   <> L_SUB_CODE Then
+   Begin
+   Add LRSDETAIL_ALT
+   Begin
+       LRSDETAIL_ALT:RECORD            = LRSDETAIL:RECORD/raw
+       LRSDETAIL_ALT:SUB_CODE          = L_SUB_CODE
+       -- reverse sign values
+       LRSDETAIL_ALT:LOSS_PAID         = LRSDETAIL:LOSS_PAID * -1
+       LRSDETAIL_ALT:LAE_PAID          = LRSDETAIL:LAE_PAID  * -1
+       LRSDETAIL_ALT:LOSS_RESV         = LRSDETAIL:LOSS_RESV * -1
+       LRSDETAIL_ALT:LAE_RESV          = LRSDETAIL:LAE_RESV  * -1
+       LRSDETAIL_ALT:ORIGINAL_SUB_CODE = LRSDETAIL:SUB_CODE
+       LRSDETAIL_ALT:ORIGINAL_USER_ID  = LRSDETAIL:USER_ID
+       LRSDETAIL_ALT:RECORD_STATUS     = "R" -- replaces another record
+       LRSDETAIL_ALT:TRANS_DATE        = TODAYSDATE -- needs to be changed for incurred reporting
+       LRSDETAIL_ALT:USER_ID           = USERNAME/raw
+       -- change trans codes
+       Switch(LRSDETAIL_ALT:TRANS_CODE)
+       -- direct
+           Case 16                     : LRSDETAIL_ALT:TRANS_CODE = 18
+           Case 17                     : LRSDETAIL_ALT:TRANS_CODE = 18
+           Case 18                     : LRSDETAIL_ALT:TRANS_CODE = 17
+           Case 96                     : LRSDETAIL_ALT:TRANS_CODE = 18
+           Case 97                     : LRSDETAIL_ALT:TRANS_CODE = 18
+           Case 98                     : LRSDETAIL_ALT:TRANS_CODE = 17
+       -- assumed
+           Case 36                     : LRSDETAIL_ALT:TRANS_CODE = 38
+           Case 37                     : LRSDETAIL_ALT:TRANS_CODE = 38
+           Case 38                     : LRSDETAIL_ALT:TRANS_CODE = 37
+       -- facultative
+           Case 56                     : LRSDETAIL_ALT:TRANS_CODE = 58
+           Case 57                     : LRSDETAIL_ALT:TRANS_CODE = 58
+           Case 58                     : LRSDETAIL_ALT:TRANS_CODE = 57
+       -- treaty
+           Case 76                     : LRSDETAIL_ALT:TRANS_CODE = 78
+           Case 77                     : LRSDETAIL_ALT:TRANS_CODE = 78
+           Case 78                     : LRSDETAIL_ALT:TRANS_CODE = 77
+       Default                         : LRSDETAIL_ALT:TRANS_CODE = LRSDETAIL:TRANS_CODE
+       End -- end of case
+    End -- end of add
+
+    End -- end of record exists checking
+
+End -- end of procedure
+
+
+Procedure UPDATE_STATUS
+Begin
+
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO,
+                          LRSDETAIL_ALT:SUB_CODE   = LRSDETAIL:SUB_CODE
+
+If LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID And
+   LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO  And
+   LRSDETAIL_ALT:SUB_CODE   = LRSDETAIL:SUB_CODE Then
+   Begin
+   Change LRSDETAIL_ALT
+   Begin
+      LRSDETAIL_ALT:RECORD_STATUS     = "D" -- this record is now internally deleted
+                                            -- however it wont be removed since
+                                            -- prior period reports will still use this
+                                            -- record for reporting purposes
+      LRSDETAIL_ALT:ORIGINAL_SUB_CODE = LRSDETAIL:SUB_CODE
+      LRSDETAIL_ALT:ORIGINAL_USER_ID  = LRSDETAIL:USER_ID
+      LRSDETAIL_ALT:USER_ID           = USERNAME
+   End -- end of change
+
+   End -- end of record found
+
+End  -- end of procedure
+
+Procedure CREATE_NEW_REPLACEMENT_TRANSACTION
+Begin
+
+
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                     LRSSETUP:CLAIM_NO   = LRSDETAIL:CLAIM_NO
+
+
+Do GET_LRSDETAIL_SUB_CODE
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO,
+                          LRSDETAIL_ALT:SUB_CODE   = LRSDETAIL:SUB_CODE
+
+If LRSDETAIL_ALT:COMPANY_ID <> LRSDETAIL:COMPANY_ID Or
+   LRSDETAIL_ALT:CLAIM_NO   <> LRSDETAIL:CLAIM_NO  Or
+   LRSDETAIL_ALT:SUB_CODE   <> L_SUB_CODE Then
+   Begin
+   Add LRSDETAIL_ALT
+   Begin
+       LRSDETAIL_ALT:RECORD                  = LRSDETAIL:RECORD/raw
+       LRSDETAIL_ALT:SUB_CODE                = L_SUB_CODE
+       LRSDETAIL_ALT:ORIGINAL_SUB_CODE       = LRSDETAIL:SUB_CODE
+       LRSDETAIL_ALT:ORIGINAL_USER_ID        = LRSDETAIL:USER_ID
+       LRSDETAIL_ALT:USER_ID                 = "~~~~~~"/raw
+       LRSDETAIL_ALT:RECORD_STATUS           = "N" -- new record, this record can be used
+                                                   -- if the change is made to this series
+                                                   -- of transactions the only status' that
+                                                   -- can not be used will be "R" and "D"
+       LRSDETAIL_ALT:LAE_RESV              = LRSDETAIL:LAE_RESV
+       LRSDETAIL_ALT:LAE_PAID              = LRSDETAIL:LAE_PAID
+       If LRSDETAIL:ULAE One Of "Y" And
+          LRSDETAIL:TRANS_CODE < 30 Then
+       Begin
+           LRSDETAIL_ALT:ULAE = "N"
+           LRSDETAIL_ALT:ALAE = "Y"
+       End
+       Else
+       Begin
+           LRSDETAIL_ALT:ULAE = "Y"
+           LRSDETAIL_ALT:ALAE = "N"
+       End
+
+   End -- end of add
+
+   End -- end of record found
+
+End  -- end of procedure
+
+
+Procedure CLEAR_USER_ID
+Begin
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = G_COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+While LRSDETAIL_ALT:COMPANY_ID = G_COMPANY_ID And
+      LRSDETAIL_ALT:CLAIM_NO   = G_CLAIM_NO
+      Begin
+
+      If LRSDETAIL_ALT:USER_ID       = "~~~~~~" And
+         LRSDETAIL_ALT:RECORD_STATUS One Of "N" Then
+         Begin
+         Change LRSDETAIL_ALT
+         Begin
+             LRSDETAIL_ALT:USER_ID = USERNAME/raw
+         End -- end of change
+
+      End -- end of condition met
+
+      Next LRSDETAIL_ALT
+
+      End -- end of next
+
+End  -- end of procedure
+
+Procedure UPDATE_LRSSUMMARY_ALT
+Begin
+
+
+Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID,
+                     LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Approximate
+
+Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID        = G_COMPANY_ID,
+                       LRSSUMMARY:CLAIM_NO          = G_CLAIM_NO, Approximate
+
+While LRSSUMMARY:COMPANY_ID = G_COMPANY_ID And
+      LRSSUMMARY:CLAIM_NO   = G_CLAIM_NO
+Begin
+Change LRSSUMMARY
+Begin
+
+   L_HOLD_ULAE_RESV             = LRSSUMMARY:ULAE_RESV
+   L_HOLD_ULAE_PAID             = LRSSUMMARY:ULAE_PAID
+   L_HOLD_ALAE_RESV             = LRSSUMMARY:ALAE_RESV
+   L_HOLD_ALAE_PAID             = LRSSUMMARY:ALAE_PAID
+   L_HOLD_CLOSING_ULAE_RESV     = LRSSUMMARY:CLOSING_ULAE_RESV
+   L_HOLD_CLOSING_ALAE_RESV     = LRSSUMMARY:CLOSING_ALAE_RESV
+
+   LRSSUMMARY:ULAE_RESV         = L_HOLD_ALAE_RESV
+   LRSSUMMARY:ULAE_PAID         = L_HOLD_ALAE_PAID
+   LRSSUMMARY:ALAE_RESV         = L_HOLD_ULAE_RESV
+   LRSSUMMARY:ALAE_PAID         = L_HOLD_ULAE_PAID
+   LRSSUMMARY:CLOSING_ALAE_RESV = L_HOLD_CLOSING_ALAE_RESV
+   LRSSUMMARY:CLOSING_ULAE_RESV = L_HOLD_CLOSING_ULAE_RESV
+
+End -- end of change
+
+Next LRSSUMMARY
+
+End -- end of while
+
+End -- end of procedure
+
+Procedure GET_LRSDETAIL_SUB_CODE
+Begin
+
+/* get new subcode */
+
+Access LRSDETAIL_ALT, Set LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID,
+                          LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO, Approximate
+
+While LRSDETAIL_ALT:COMPANY_ID = LRSDETAIL:COMPANY_ID And
+      LRSDETAIL_ALT:CLAIM_NO   = LRSDETAIL:CLAIM_NO
+      Begin
+         L_SUB_CODE = LRSDETAIL_ALT:SUB_CODE
+         Next LRSDETAIL_ALT
+      End -- end of next
+
+L_SUB_CODE = L_SUB_CODE + 10
+
+End -- end of procedure
+
+End

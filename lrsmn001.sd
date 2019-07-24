@@ -1,0 +1,183 @@
+*----------------------------------------*-------------------------------------*
+|     Claims Daily Processing            |     Check Processing                |
+|  1. Claim Transactions - SCIPS         | 20. Check Setup (Make Payments)     |
+|                                        | 21. Check Release/Approval          |
+|                                        | 22. Payment Correction/Return       |
+|     Claim Letters                      | 23. Check Reconciliation            |
+|  5. Form Letters                       | 24. Payment Inquiry                 |
+|                                        |                                     |
+|     Utilities                          |     Check Printing                  |
+| 10. Transaction Code Maintenance       | 30. Print Checks Released           |
+| 11. Vendor Maintenance                 | 31. Reprint Individual Check        |
+| 12. Reserve Default Maintenance        |                                     |
+| 13. Cause of Loss Maintenance          |                                     |
+| 14. Summary Transaction Codes          |                                     |
+| 15. View/Print Dec Page                |                                     |
+| 16. Update Summary                     |                                     |
+|                                        |     Utilities                       |
+|     Reinsurance Worksheets             | 40. Check Message Maintenance       |
+| 70. Businessowners Claims              | 41. Check Transaction Codes         |
+| 71. Businessowners Premium             | 42. Account File Maintenance        |
+| 72. Personal Lines Claims              | 43. Reportable Claim                |
+| 73. Personal Lines Premium             | 44. Repair LRSSUMMARY               |
+|                                        | 45. Pay to/Mail to Codes            |
+|                                        |                                     |
+|                                        |     Check Reports                   |
+|                                        | 50. Check/Cash Requirement Report   |
+|                                        | 51. Checks Printed Report           |
+|                                        | 52. Check Status Report             |
+|                                  __    | 53. 1099 Processing                 |
+*----------------------------------------*-------------------------------------*
+%%
+Screen
+        Name = "lrsmn001" ;
+        Type = "Menu" ;
+        Include "MENUKEYS.INC"
+        Screensize = "dynamic";
+        Windowtitle="%a     %s Claims Processing Master Menu    %m";
+
+        Global String G_LIB[10],
+                      G_COMPANY_ID[10],
+                      G_CLAIMANT[50],
+                      G_CLAIM_COMPANY[1],
+                      G_CAUSE_LOSS_SUBLINE[2],
+                      G_YESNO[1] ,
+                      G_LRSMT010[1],
+                      G_RESERVE_UPDATE[1],
+                      G_INSURED[1],
+                      G_LOSS_CLOSE[1],
+                      G_ULAE_CLOSE[1],
+                      G_ALAE_CLOSE[1] ,
+                      G_LOB_SUBLINE[2],
+                      G_YES[1] ,
+                      G_OVERPAYMENT[1] ,
+                      G_ULAE_APPLICABLE[1],
+                      G_ALAE_APPLICABLE[1] ,
+                      G_PAYEE_INFO[1],
+                      G_PAYEE_NAME1[50],
+                      G_TYPE[1],
+                      G_REVERSE[1],
+                      G_NOTHING[1],
+                      G_REISSUE[1],
+                      G_LRSSUMMARY_STATUS[1],
+                      G_MAIL_NAME1[50] ,
+                      G_BF_NAME[50],
+                      G_CLOSE_CLAIM[1],
+                      G_PAYMENT_CLOSED[1],
+                      G_NAME[50],
+                      G_PAYTO[1],
+                      G_MAILTO[1],
+                      G_PAYTO2[1],
+                      G_MAILTO2[1],
+                      G_RESERVECHANGE[1] ,
+                      G_DISPLAY[1] ,
+                      g_letter[3] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_SUB_CODE[4] ,
+                                     G_CLAIM[12],
+                                     G_CAUSE_OF_LOSS[4],
+                                     G_CLAIMANT_SUBCODE[4],
+                                     G_POLICY_NO[9],
+                                     G_PUB_ADJUST_NO[4],
+                                     G_CAT_NO[5] ,
+                                     G_YEAR[4],
+                                     G_END_SEQUENCE[4] ,
+                                     G_LINE_OF_BUSINESS[4],
+                                     G_SUMMARY_SUB_CODE[4],
+                                     G_REINS_CO[6],
+                                     G_TRANS_TYPE[2],
+                                     G_PAID_AMOUNT[9]/decimals=2 ,
+                                     G_ULAE_AMOUNT[9]/decimals=2,
+                                     G_ALAE_AMOUNT[9]/decimals=2 ,
+                                     G_STATUS[1] ,
+                                     G_VENDOR[5],
+                                     G_TRANS_CODE[4] ,
+                                     G_BF_NO[5],
+                                     g_lrs_opt[1] ;
+
+        Global Signed Ascii Number G_AMOUNT[8],
+                                   G_ULAE[8],
+                                   G_ALAE[8] ,
+                                   G_SUMMARY_LOSS[7],
+                                   G_SUMMARY_ULAE[7],
+                                   G_SUMMARY_ALAE[7],
+                                   G_LOSS_RESV[7],
+                                   G_LOSS_PAID[9]/dec=2,
+                                   G_ULAE_RESV[5],
+                                   G_ULAE_PAID[7]/dec=2,
+                                   G_ALAE_RESV[5],
+                                   G_ALAE_PAID[7]/dec=2 ,
+                                   G_RESERVE[7],
+                                   G_CHECK_AMOUNT[9];
+
+        Global Date G_LOSS_DATE[8] ;
+
+        String L_ENTER[1];
+
+Functions
+/* daily processing */
+1       Display "lrsmt001" ;
+
+/*claim form letters */
+5       Display "lrsmn002" ;
+
+/* utilities*/
+10      Display "lrsmt103" ;
+11      Display "sfsmt003" ;
+12      Display "lrsmt106" ;
+13      Display "sfsmt101" ;
+14      Display "lrsmt105" ;
+15      Display "sfppr400" ;
+16      Display "lrsmt200" ;
+
+/* reinsurance processing */
+70      Display "lrsceded" ;
+71      Display "prsmt600" ;
+72      Display "lrsmt605" ;
+73      Display "prsmt605" ;
+
+/* IDP */
+90      Display "lrsmt100" ;
+
+/* check processing */
+20      Display "apsmt200" ;
+21      Display "apsmt210" ;
+22      Display "apsmt211" ;
+23      Display "apsmt212" ;
+24      Display "apsin200" ;
+
+/* check printing */
+30      Display "apsmt213" ;
+31      Display "apsmt215" ;
+
+/* check utilities*/
+40      Display "apsmt204" ;
+41      Display "apsmt010" ;
+42      Display "apsmt011" ;
+43      Display "lrsmt01e" ;
+44      Display/security=90 "lrsmt990" ;
+45      Display "sfsmt237" ;
+
+/* check reports */
+
+97      Screenlib G_LIB ;
+98      Stop ;
+99      Continue Begin
+                 If G_LIB = "" Then
+                     Begin
+                     Warning "You are about to exit, press CANCEL to exit"
+                     If Abort = "NO" Then
+                         FUNCTION = "98"
+                     End
+                 Else
+                     FUNCTION = "97"
+                 End ;
+
+Fields
+2901    FUNCTION;
+
+Screen Exit
+G_LRS_OPT = 4
+
+End

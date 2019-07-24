@@ -1,0 +1,60 @@
+%%
+Screen
+        Name = "lrsmt320" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Payment Codes - Ver 7.00     %m" ;
+        domain="apspaycode" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________  ______________________________________________ |
+| Payment Code:     ____                                                       |
+| Description:      __________________________________________________         |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     APSPAYCODE:COMPANY_ID                   Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     APSPAYCODE:PAYMENT_CODE                 Mandatory;
+501     APSPAYCODE:DESCRIPTION;
+
+}
+
+End

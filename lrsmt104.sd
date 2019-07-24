@@ -1,0 +1,218 @@
+%%
+Screen
+        Name = "Lrsmt104" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        screensize = "dynamic" ;
+        Highlite = Underscore ;
+        Windowtitle = "%a     %s Claimant Name and Address - Ver 7.00    %m";
+        Domain="LRSCMNT" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10],
+                      G_NAME[50],
+                      G_CLAIMANT[50] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     g_sub_code[4] ;
+
+        Local Unsigned Ascii Number L_SUBCODE[4] ;
+
+        Access LRSCMNT,
+           Set LRSCMNT:COMPANY_ID = G_COMPANY_ID ,
+               LRSCMNT:CLAIM_NO   = G_CLAIM_NO ,
+               lrscmnt:sub_code   = g_sub_code, generic
+
+        include "stdkeys.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+        "func1" display "lrsmt113" tagged medicare_fn ;
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        include "stdtoolbar7.inc"
+
+}
+
+        include "stdblanktoolbar7.inc"
+
+}
+
+Toolbar Tagged Main_t Properties
+        {
+        Text     = "Main"
+        FontName = "SansSerif"
+        Fontsize = 10
+        }
+{
+ToolBarButton
+    Properties
+        {
+        Iconname   = "up.bmp"
+        }
+    Events
+        {
+        Action    = medicare_fn
+        }
+
+}
+
+screen entry
+if g_company_id not one of "FLEMINGTON", "FARMERS" then
+    disable(medicare_fn)
+
+access validation
+if lrscmnt:company_id <> g_company_id or
+   lrscmnt:claim_no <> g_claim_no then
+    error 1000 ;
+
+screen at 2,1 to 18,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:   __________ __________________________________________________  |
+| Claim Number: ___________                                                    |
+*------------------------------------------------------------------------------*
+| Name:               __________________________________________________       |
+|                     __________________________________________________       |
+|                     __________________________________________________       |
+| Address:            __________________________________________________       |
+|                     __________________________________________________       |
+|                     __________________________________________________       |
+| City:               ______________________________                           |
+| State:              ____                                                     |
+| Zipcode:            ____________                                             |
+| Minor:              ___                                                      |
+| Age:                __                                                       |
+| Medicare Reporting: _                                                        |
+*------------------------------------------------------------------------------*
+%%
+Fields
+101     FUNCTION/noecho/showasguidetext;
+301     Begin
+        If FUNCTION = "ADD" Then
+            LRSCMNT:COMPANY_ID = G_COMPANY_ID
+        End
+        LRSCMNT:COMPANY_ID/displayonly  ;
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            LRSCMNT:CLAIM_NO = G_CLAIM_NO
+            Do GET_CLAIMANT_SUBCODE
+            LRSCMNT:SUB_CODE = L_SUBCODE
+            End
+        End
+        LRSCMNT:CLAIM_NO/displayonly  ;
+601     LRSCMNT:NAME[1]/default                            Mandatory
+        G_NAME = LRSCMNT:NAME[1] ;
+701     LRSCMNT:NAME[2];
+801     LRSCMNT:NAME[3];
+901     LRSCMNT:ADDRESS[1];
+1001    LRSCMNT:ADDRESS[2];
+1101    LRSCMNT:ADDRESS[3];
+1201    LRSCMNT:CITY;
+1301    LRSCMNT:STR_STATE;
+1401    LRSCMNT:STR_ZIPCODE;
+1401    Begin
+        If LRSCMNT:STR_ZIPCODE[6,9] = "" Then
+            LRSCMNT:STR_ZIPCODE[6,9] = "0000"
+        End
+        LRSCMNT:STR_ZIPCODE/displayonly ;
+1501    LRSCMNT:MINOR;
+1601    LRSCMNT:AGE;
+1701    lrscmnt:medicare_reporting/checkbox/values="0,1" ;
+
+} -- end of screen panel
+
+update
+if updateok = "YES" and
+   abort = "NO" then
+    begin
+    if function one of "ADD" then
+        begin
+        if lrscmnt:medicare_reporting = 1 and
+           lrscmnt:company_id one of "FLEMINGTON", "FARMERS" then
+            begin
+            g_company_id = lrscmnt:company_id
+            g_claim_no   = lrscmnt:claim_no
+            display modal screen "lrsmt113"
+            with initial function "ADD"
+            end
+        end
+
+    if function one of "CHANGE" then
+        begin
+        access lrssetup, set lrssetup:company_id = lrscmnt:company_id,
+                             lrssetup:claim_no   = lrscmnt:claim_no, generic
+
+        if lrssetup:company_id = lrscmnt:company_id and
+           lrssetup:claim_no   = lrscmnt:claim_no then
+            begin
+            if lrscmnt:sub_code = 10 then
+                begin
+                change lrssetup
+                    begin
+                    lrssetup:claimant = lrscmnt:name[1]
+                    end
+                end
+            end
+
+        access lrssummary, set lrssummary:company_id         = lrscmnt:company_id,
+                               lrssummary:claim_no           = lrscmnt:claim_no, generic
+
+        while lrssummary:company_id         = lrscmnt:company_id and
+              lrssummary:claim_no           = lrscmnt:claim_no
+            begin
+            if lrssummary:sub_code = lrscmnt:sub_code then
+                begin
+                change lrssummary
+                    begin
+                    lrssummary:claimant = lrscmnt:name[1]
+                    end
+                end
+
+            next lrssummary
+            end
+        end
+
+    end
+
+Screen Exit
+If LRSCMNT:NAME[1] > " " Then G_CLAIMANT = LRSCMNT:NAME[1] ;
+
+Procedure Definition
+
+Procedure GET_CLAIMANT_SUBCODE
+Begin
+Access lrscmnt_alias, Set lrscmnt_alias:COMPANY_ID = LRSCMNT:COMPANY_ID ,
+                          lrscmnt_alias:CLAIM_NO = LRSCMNT:CLAIM_NO , Generic
+
+L_SUBCODE = 0
+while lrscmnt_alias:COMPANY_ID = LRSCMNT:COMPANY_ID and
+      lrscmnt_alias:CLAIM_NO   = LRSCMNT:CLAIM_NO
+        begin
+        L_SUBCODE = lrscmnt_alias:SUB_CODE
+
+        Next lrscmnt_alias
+        End
+
+L_SUBCODE = L_SUBCODE + 10
+End
+
+End

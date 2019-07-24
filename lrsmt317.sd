@@ -1,0 +1,74 @@
+%%
+Screen
+        Name = "lrsmt317" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s WC Deductible Code - Ver 7.00     %m" ;
+        domain="lrswcdeductcode" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        add/reuse  tagged add_fn;
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+}
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:       __________  ______________________________________________ |
+| State Code:       __          ______________________________________________ |
+| Line Of Business: ____        ______________________________________________ |
+| WC Deductible:    ___                                                        |
+| Effective Date:   __________                                                 |
+| Expiration Date:  __________                                                 |
+*------------------------------------------------------------------------------*
+| Description:-                                                                |
+| ____________________________________________________________________________ |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSWCDEDUCTCODE:COMPANY_ID              Mandatory
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSWCDEDUCTCODE:STATE                   Mandatory
+        include "statehlp.inc"
+402     sfsstate:description ;
+501     LRSWCDEDUCTCODE:LINE_OF_BUSINESS        Mandatory
+        include "linehlp.inc"
+502     sfsline:description ;
+601     LRSWCDEDUCTCODE:WC_DEDUCTIBLE           Mandatory;
+701     LRSWCDEDUCTCODE:EFF_DATE                Mandatory;
+801     LRSWCDEDUCTCODE:EXP_DATE;
+1101    LRSWCDEDUCTCODE:DESCRIPTION;
+
+}
+
+End

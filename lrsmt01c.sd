@@ -1,0 +1,327 @@
+%%
+Screen
+        Name = "lrsmt01c" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s NJAIRE Reportable Claim Form - Ver 7.00    %m" ;
+        Domain = "LRSREPORTABLE" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+
+        Global String G_CAUSE_LOSS_SUBLINE[2],
+                      G_LOB_SUBLINE[2] ;
+
+        Global Unsigned Ascii Number G_CAUSE_OF_LOSS[4],
+                                     G_TRANS_TYPE[2],
+                                     G_SUMMARY_SUB_CODE[4],
+                                     G_LINE_OF_BUSINESS[4];
+
+        Access LRSREPORTABLE,
+           Set LRSREPORTABLE:COMPANY_ID = G_COMPANY_ID ,
+               LRSREPORTABLE:CLAIM_NO   = G_CLAIM_NO ,
+               LRSREPORTABLE:SUB_CODE   = G_SUB_CODE , Generic
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+screen at 2,1 to 34,83
+{
+%%
+                                                        _______________
+*--------------------------------------------------------------------------------*
+| Company ID: __________  __________________________________________________     |
+| Claim No:   ___________                                                        |
+*--------------------------------------------------------------------------------*
+| Claimant:       __________________________________________________             |
+| Closing Date:   __________                                                     |
+| Effective Date: __________                Dollar Amount:         $ __________  |
+| Loss Date:      __________                Territory:                      ___  |
+| Was the insured automobile a PRIVATE PASSENGER AUTOMOBILE?:                 _  |
+| Is this an Uninsured Motorists (UM) or Underinsured Motorists (UIM) Claim?: _  |
+| Is the claimant a New Jersey Resident?:                                     _  |
+| Is the claimant a person who is required to maintain PIP insurance, or is      |
+|  eligible to collect PIP benefits as a result of the accident?:             _  |
+| Is the accident state New Jersey?:                                          _  |
+| Did the INSURED choose the New Jersey verbal tort threshold?:               _  |
+| Did the CLAIMANT choose the New Jersey zero tort threshold or did the zero     |
+|  tort threshold apply due to the default provided by law?:                  _  |
+| Do any of the following characterize this injury?                              |
+|  a. Death:                                                                  _  |
+|  b. Dismemberment:                                                          _  |
+|  c. Significant Disfigurement:                                              _  |
+|  d. A Fracture:                                                             _  |
+|  e. Loss of a Fetus:                                                        _  |
+|  f. Permanent Loss of use of a body organ, member, function or system:      _  |
+|  g. Permanent consequential Limitation of use of a body organ or member:    _  |
+|  h. Significant Limitation of use of a body function or system:             _  |
+|  i. Medically determined injury or impairment of a non-permanent nature which  |
+|     prevents the injured person from performing substantially all of the       |
+|     material acts which constitute that person's usual and customary daily     |
+|     activities for not less then 90 days during the 180 days immediately       |
+|     following the occurrence of the injury or impairment                    _  |
+| Reportable Claim?:                                                          _  |
+*--------------------------------------------------------------------------------*
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            Access LRSCHECK, Set LRSCHECK:COMPANY_ID = G_COMPANY_ID,
+                                 LRSCHECK:CLAIM_NO   = G_CLAIM_NO,
+                                 LRSCHECK:SUB_CODE   = G_SUB_CODE, Generic
+
+            Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID,
+                                 LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Generic
+
+            Access SFPNAME, Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO,
+                                SFPNAME:POL_YEAR     = LRSSETUP:POL_YEAR,
+                                SFPNAME:END_SEQUENCE = LRSSETUP:END_SEQUENCE, Generic
+
+            Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID         = G_COMPANY_ID,
+                                   LRSSUMMARY:CLAIM_NO           = G_CLAIM_NO,
+                                   LRSSUMMARY:LINE_OF_BUSINESS   = G_LINE_OF_BUSINESS,
+                                   LRSSUMMARY:LOB_SUBLINE        = G_LOB_SUBLINE ,
+                                   LRSSUMMARY:CAUSE_OF_LOSS      = G_CAUSE_OF_LOSS,
+                                   LRSSUMMARY:CAUSE_LOSS_SUBLINE = G_CAUSE_LOSS_SUBLINE ,
+                                   LRSSUMMARY:TRANS_TYPE         = G_TRANS_TYPE,
+                                   LRSSUMMARY:SUB_CODE           = G_SUMMARY_SUB_CODE, Generic
+
+            LRSREPORTABLE:COMPANY_ID          = G_COMPANY_ID
+            LRSREPORTABLE:CLAIM_NO            = G_CLAIM_NO
+            LRSREPORTABLE:SUB_CODE            = G_SUB_CODE
+            LRSREPORTABLE:LINE_OF_BUSINESS    = G_LINE_OF_BUSINESS
+            LRSREPORTABLE:LOB_SUBLINE         = G_LOB_SUBLINE
+            LRSREPORTABLE:CAUSE_OF_LOSS       = G_CAUSE_OF_LOSS
+            LRSREPORTABLE:CAUSE_LOSS_SUBLINE  = G_CAUSE_LOSS_SUBLINE
+            LRSREPORTABLE:TRANS_TYPE          = G_TRANS_TYPE
+            LRSREPORTABLE:LRSSUMMARY_SUB_CODE = G_SUMMARY_SUB_CODE
+            LRSREPORTABLE:CLAIMANT            = LRSSUMMARY:CLAIMANT
+            LRSREPORTABLE:CLOSING_DATE        = LRSSUMMARY:STATUS_DATE
+            LRSREPORTABLE:PRIVATE_PASSENGER   = 1
+            LRSREPORTABLE:EFF_DATE            = SFPNAME:EFF_DATE
+            LRSREPORTABLE:LOSS_DATE           = LRSSETUP:LOSS_DATE
+            LRSREPORTABLE:TERRITORY           = LRSSETUP:TERRITORY
+            End
+        Else
+        If FUNCTION = "CHANGE" Then
+            Begin
+            Access LRSCHECK, Set LRSCHECK:COMPANY_ID = G_COMPANY_ID,
+                                 LRSCHECK:CLAIM_NO   = G_CLAIM_NO,
+                                 LRSCHECK:SUB_CODE   = G_SUB_CODE, Generic
+
+            Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID,
+                                 LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Generic
+
+            Access SFPNAME, Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO,
+                                SFPNAME:POL_YEAR     = LRSSETUP:POL_YEAR,
+                                SFPNAME:END_SEQUENCE = LRSSETUP:END_SEQUENCE, Generic
+
+            Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID         = G_COMPANY_ID,
+                                   LRSSUMMARY:CLAIM_NO           = G_CLAIM_NO,
+                                   LRSSUMMARY:LINE_OF_BUSINESS   = G_LINE_OF_BUSINESS,
+                                   LRSSUMMARY:LOB_SUBLINE        = G_LOB_SUBLINE ,
+                                   LRSSUMMARY:CAUSE_OF_LOSS      = G_CAUSE_OF_LOSS,
+                                   LRSSUMMARY:CAUSE_LOSS_SUBLINE = G_CAUSE_LOSS_SUBLINE ,
+                                   LRSSUMMARY:TRANS_TYPE         = G_TRANS_TYPE,
+                                   LRSSUMMARY:SUB_CODE           = G_SUMMARY_SUB_CODE, Generic
+
+            LRSREPORTABLE:LINE_OF_BUSINESS    = G_LINE_OF_BUSINESS
+            LRSREPORTABLE:LOB_SUBLINE         = G_LOB_SUBLINE
+            LRSREPORTABLE:CAUSE_OF_LOSS       = G_CAUSE_OF_LOSS
+            LRSREPORTABLE:CAUSE_LOSS_SUBLINE  = G_CAUSE_LOSS_SUBLINE
+            LRSREPORTABLE:TRANS_TYPE          = G_TRANS_TYPE
+            LRSREPORTABLE:LRSSUMMARY_SUB_CODE = G_SUMMARY_SUB_CODE
+            LRSREPORTABLE:CLAIMANT            = LRSSUMMARY:CLAIMANT
+            LRSREPORTABLE:CLOSING_DATE        = LRSSUMMARY:STATUS_DATE
+            LRSREPORTABLE:PRIVATE_PASSENGER   = 1
+            LRSREPORTABLE:EFF_DATE            = SFPNAME:EFF_DATE
+            LRSREPORTABLE:LOSS_DATE           = LRSSETUP:LOSS_DATE
+            LRSREPORTABLE:TERRITORY           = LRSSETUP:TERRITORY
+            End
+
+        End
+        LRSREPORTABLE:COMPANY_ID/displayonly ;
+302     SFSCOMPANY:NAME[1] ;
+401     LRSREPORTABLE:CLAIM_NO/displayonly  ;
+601     LRSREPORTABLE:CLAIMANT/displayonly  ;
+
+701     LRSREPORTABLE:CLOSING_DATE/default ;
+801     LRSREPORTABLE:EFF_DATE/displayonly ;
+901     LRSREPORTABLE:LOSS_DATE/displayonly ;
+802     LRSREPORTABLE:DOLLAR_AMOUNT
+        Hide when LRSREPORTABLE:REPORTABLE_CLAIM = 0 ;
+902     LRSREPORTABLE:TERRITORY/default ;
+1001    LRSREPORTABLE:PRIVATE_PASSENGER ;
+1101    LRSREPORTABLE:UM_UIM_CLAIM ;
+1201    LRSREPORTABLE:CLAIMANT_NJ_RESIDENT
+        Hide when LRSREPORTABLE:UM_UIM_CLAIM = 1 ;
+1401    LRSREPORTABLE:CLAIMANT_PIP
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 ;
+1501    LRSREPORTABLE:ACCIDENT_IN_NJ
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 ;
+1601    LRSREPORTABLE:INSURED_NJ_THRESHOLD
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 ;
+1801    LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 ;
+2001    LRSREPORTABLE:DEATH
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 ;
+2101    LRSREPORTABLE:DISMEMBERMENT
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 ;
+2201    LRSREPORTABLE:DISFIGUREMENT
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 ;
+2301    LRSREPORTABLE:FRACTURE
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 ;
+2401    LRSREPORTABLE:LOSS_FETUS
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 Or
+                  LRSREPORTABLE:FRACTURE = 1 ;
+2501    LRSREPORTABLE:PERMANENT_LOSS
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 Or
+                  LRSREPORTABLE:FRACTURE = 1 Or
+                  LRSREPORTABLE:LOSS_FETUS = 1 ;
+2601    LRSREPORTABLE:PERMANENT_LIMITATION
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 Or
+                  LRSREPORTABLE:FRACTURE = 1 Or
+                  LRSREPORTABLE:LOSS_FETUS = 1 Or
+                  LRSREPORTABLE:PERMANENT_LOSS = 1 ;
+2701    LRSREPORTABLE:SIGNIFICANT_LIMITATION
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DEATH = 1 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 Or
+                  LRSREPORTABLE:FRACTURE = 1 Or
+                  LRSREPORTABLE:LOSS_FETUS = 1 Or
+                  LRSREPORTABLE:PERMANENT_LOSS = 1 Or
+                  LRSREPORTABLE:PERMANENT_LIMITATION = 1 ;
+3201    LRSREPORTABLE:IMPAIRMENT
+        Hide when LRSREPORTABLE:CLAIMANT_NJ_RESIDENT = 0 Or
+                  LRSREPORTABLE:UM_UIM_CLAIM = 1 Or
+                  LRSREPORTABLE:CLAIMANT_PIP = 0 Or
+                  LRSREPORTABLE:ACCIDENT_IN_NJ = 0 Or
+                  LRSREPORTABLE:INSURED_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD = 0 Or
+                  LRSREPORTABLE:DISMEMBERMENT = 1 Or
+                  LRSREPORTABLE:DISFIGUREMENT = 1 Or
+                  LRSREPORTABLE:FRACTURE = 1 Or
+                  LRSREPORTABLE:LOSS_FETUS = 1 Or
+                  LRSREPORTABLE:PERMANENT_LOSS = 1 Or
+                  LRSREPORTABLE:PERMANENT_LIMITATION = 1 Or
+                  LRSREPORTABLE:SIGNIFICANT_LIMITATION = 1 Or
+                  LRSREPORTABLE:DEATH = 1 ;
+
+3301    Begin
+        If FUNCTION = "ADD" Or
+           FUNCTION = "CHANGE" Then
+            Begin
+            If LRSREPORTABLE:CLAIMANT_NJ_RESIDENT   = 0 Or
+               LRSREPORTABLE:UM_UIM_CLAIM           = 1 Or
+               LRSREPORTABLE:CLAIMANT_PIP           = 0 Or
+               LRSREPORTABLE:ACCIDENT_IN_NJ         = 0 Or
+               LRSREPORTABLE:INSURED_NJ_THRESHOLD   = 0 Or
+               LRSREPORTABLE:CLAIMANT_NJ_THRESHOLD  = 0 Or
+               LRSREPORTABLE:DEATH                  = 1 Or
+               LRSREPORTABLE:DISMEMBERMENT          = 1 Or
+               LRSREPORTABLE:DISFIGUREMENT          = 1 Or
+               LRSREPORTABLE:FRACTURE               = 1 Or
+               LRSREPORTABLE:LOSS_FETUS             = 1 Or
+               LRSREPORTABLE:PERMANENT_LOSS         = 1 Or
+               LRSREPORTABLE:PERMANENT_LIMITATION   = 1 Or
+               LRSREPORTABLE:SIGNIFICANT_LIMITATION = 1 Or
+               LRSREPORTABLE:IMPAIRMENT             = 1 Then
+                LRSREPORTABLE:REPORTABLE_CLAIM = 0
+            Else
+                LRSREPORTABLE:REPORTABLE_CLAIM = 1
+            End
+        End
+        LRSREPORTABLE:REPORTABLE_CLAIM/default
+        If ((LRSREPORTABLE:CLAIMANT       = "" Or
+           LRSREPORTABLE:CLOSING_DATE     = 0 Or
+           LRSREPORTABLE:EFF_DATE         = 0 Or
+           LRSREPORTABLE:LOSS_DATE        = 0 Or
+           LRSREPORTABLE:DOLLAR_AMOUNT    = 0 Or
+           LRSREPORTABLE:TERRITORY        = 0) And
+           LRSREPORTABLE:REPORTABLE_CLAIM = 1) Then
+            Warning "Form not completed" ;
+
+} -- end of screen panel
+
+End

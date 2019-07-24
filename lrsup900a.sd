@@ -1,0 +1,304 @@
+%%
+Program
+        Name = "lrsup900a" ;
+        Type = "File" ;
+        Domain = "FLAT" ;
+        Padcharacter = Space ;
+
+-- program will add a record to remove credits from reserves
+
+        global string g_company_id[10] ;
+
+        global unsigned ascii number g_claim_no[11] ;
+
+        local unsigned ascii Number COUNTER = 0 ,
+                                    l_sub_code[4]=0 ,
+                                    l_lrsdetail_sub_code[4]=0,
+                                    l_vendor[5]=0 ;
+
+        local signed ascii number l_loss_resv[8]=0,
+                                  l_ulae_resv[8]=0,
+                                  l_alae_resv[8]=0 ;
+
+        local String L_COMPANY_ID[10]="",
+                     l_misc[20]="" ,
+                     l_loss[1]="",
+                     l_ulae[1]="",
+                     l_alae[1]="";
+
+        local Wdate L_STARTING_DATE,
+                    L_ENDING_DATE;
+
+Screen Entry
+Write ("<014>")
+L_STARTING_DATE = Date(COMMANDLINE[1,8])
+L_ENDING_DATE   = Date(COMMANDLINE[9,16])
+g_claim_no      = val(commandline[17,27])
+g_company_id    = uppercase(commandline[28,37])
+
+If L_STARTING_DATE = 00.00.0000 Then
+    Begin
+    L_STARTING_DATE = TODAYSDATE
+    L_ENDING_DATE   = TODAYSDATE
+    End
+
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+    Begin
+    Write ("<014>")
+    Write ("%c%s",01001,"Counter ")
+    Write ("%c%s%n",02001,"Claim Number  = ",g_claim_no)
+    Write ("%c%s%s",05001,"Company ID    = ",g_company_id)
+    Write ("%c%s%d",07001,"Starting Date = ",L_STARTING_DATE)
+    Write ("%c%s%d",09001,"Ending Date   = ",L_ENDING_DATE)
+    End
+
+if g_claim_no <> 0 then
+    begin
+    do update_lrssummary_lrsdetail_claim_no
+    end
+else
+    begin
+    Do UPDATE_LRSSUMMARY_LRSDETAIL
+    end
+
+Update
+
+Screen Exit
+Write ("%c%s%n",15001,"Update is Complete......",COUNTER)
+
+Procedure Definition
+
+Procedure UPDATE_LRSSUMMARY_LRSDETAIL
+Begin
+L_COMPANY_ID  = ""
+
+Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID = L_COMPANY_ID, Approximate
+
+While LRSSUMMARY:ERRORNUMBER = 0
+    Begin
+    if lrssummary:loss_resv < 0 then
+        begin
+        l_loss = "Y"
+        l_ulae = "N"
+        l_alae = "N"
+        l_loss_resv = lrssummary:loss_resv
+        l_ulae_resv = 0
+        l_alae_resv = 0
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:loss_resv = 0
+            end
+        end
+    if lrssummary:ulae_resv < 0 then
+        begin
+        l_loss = "N"
+        l_ulae = "Y"
+        l_alae = "N"
+        l_loss_resv = 0
+        l_ulae_resv = lrssummary:ulae_resv
+        l_alae_resv = 0
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:ulae_resv = 0
+            end
+        end
+    if lrssummary:alae_resv < 0 then
+        begin
+        l_loss = "N"
+        l_ulae = "N"
+        l_alae = "Y"
+        l_loss_resv = 0
+        l_ulae_resv = 0
+        l_alae_resv = lrssummary:alae_resv
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:alae_resv = 0
+            end
+        end
+
+    Next LRSSUMMARY
+    End
+
+End
+
+Procedure UPDATE_LRSSUMMARY_LRSDETAIL_CLAIM_NO
+Begin
+Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID = G_COMPANY_ID,
+                       LRSSUMMARY:CLAIM_NO   = G_CLAIM_NO, generic
+
+While lrssummary:company_id = g_company_id and
+      lrssummary:claim_no   = g_claim_no
+    Begin
+    if lrssummary:loss_resv < 0 then
+        begin
+        l_loss = "Y"
+        l_ulae = "N"
+        l_alae = "N"
+        l_loss_resv = lrssummary:loss_resv
+        l_ulae_resv = 0
+        l_alae_resv = 0
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:loss_resv = 0
+            end
+        end
+    if lrssummary:ulae_resv < 0 then
+        begin
+        l_loss = "N"
+        l_ulae = "Y"
+        l_alae = "N"
+        l_loss_resv = 0
+        l_ulae_resv = lrssummary:ulae_resv
+        l_alae_resv = 0
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:ulae_resv = 0
+            end
+        end
+    if lrssummary:alae_resv < 0 then
+        begin
+        l_loss = "N"
+        l_ulae = "N"
+        l_alae = "Y"
+        l_loss_resv = 0
+        l_ulae_resv = 0
+        l_alae_resv = lrssummary:alae_resv
+        l_misc = "backout neg resv"
+        Do ADD_LRSDETAIL
+        change lrssummary
+            begin
+            lrssummary:alae_resv = 0
+            end
+        end
+
+    Next LRSSUMMARY
+    End
+
+End
+
+Procedure ADD_LRSDETAIL
+Begin
+Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                      LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO, Approximate
+
+l_sub_code           = 0
+l_vendor             = 0
+l_lrsdetail_sub_code = 0
+While LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID And
+      LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO
+    Begin
+    l_sub_code = lrsdetail:sub_code
+    if l_loss = "Y" then
+        begin
+        if lrsdetail:loss_resv = l_loss_resv then
+            begin
+            l_vendor = lrsdetail:vendor_no
+            l_lrsdetail_sub_code = lrsdetail:sub_code
+            end
+        end
+    if l_ulae = "Y" then
+        begin
+        if lrsdetail:ulae = "Y" and
+           lrsdetail:lae_resv = l_ulae_resv then
+            begin
+            l_vendor = lrsdetail:vendor_no
+            l_lrsdetail_sub_code = lrsdetail:sub_code
+            end
+        end
+    if l_alae = "Y" then
+        begin
+        if lrsdetail:alae = "Y" and
+           lrsdetail:lae_resv = l_alae_resv then
+            begin
+            l_vendor = lrsdetail:vendor_no
+            l_lrsdetail_sub_code = lrsdetail:sub_code
+            end
+        end
+
+    next lrsdetail
+    end
+
+access lrssetup, set lrssetup:company_id = lrssummary:company_id,
+                     lrssetup:claim_no   = lrssummary:claim_no, generic
+
+if l_lrsdetail_sub_code <> 0 then
+    begin
+    Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                          LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO,
+                          lrsdetail:sub_code   = l_lrsdetail_sub_code, generic
+    end
+else
+    begin
+    Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSUMMARY:COMPANY_ID,
+                          LRSDETAIL:CLAIM_NO   = LRSSUMMARY:CLAIM_NO,
+                          lrsdetail:sub_code   = l_sub_code, generic
+    end
+
+add lrsdetail_alias
+    begin
+    lrsdetail_alias:company_id                  =       lrsdetail:company_id/raw
+    lrsdetail_alias:claim_no                    =       lrsdetail:claim_no
+    lrsdetail_alias:sub_code                    =       l_sub_code + 10
+    lrsdetail_alias:record_rdf                  =       lrsdetail:record_rdf/raw
+    lrsdetail_alias:trans_date                  =       todaysdate
+    lrsdetail_alias:line_of_business            =       lrssummary:line_of_business
+    lrsdetail_alias:lob_subline                 =       lrssummary:lob_subline/raw
+    lrsdetail_alias:cause_of_loss               =       lrssummary:cause_of_loss
+    lrsdetail_alias:cause_loss_subline          =       lrssummary:cause_loss_subline/raw
+    lrsdetail_alias:trans_code                  =       17
+    lrsdetail_alias:reins_co                    =       0
+    lrsdetail_alias:summary_sub_code            =       lrssummary:sub_code
+    if l_ulae = "N" and
+       l_alae = "N" then
+        begin
+        lrsdetail_alias:loss_resv               =       l_loss_resv * -1
+        lrsdetail_alias:lae_resv                =       0
+        lrsdetail_alias:ulae                    =       "N"
+        lrsdetail_alias:alae                    =       "N"
+        if l_vendor <> 0 then
+            lrsdetail_alias:vendor_no           =       l_vendor
+        else
+            lrsdetail_alias:vendor_no           =       0
+        end
+    if l_ulae = "Y" and
+       l_alae = "N" then
+        begin
+        lrsdetail_alias:lae_resv                =       l_ulae_resv * -1
+        lrsdetail_alias:loss_resv               =       0
+        lrsdetail_alias:ulae                    =       "Y"
+        lrsdetail_alias:alae                    =       "N"
+        if l_vendor <> 0 then
+            lrsdetail_alias:vendor_no           =       l_vendor
+        else
+            lrsdetail_alias:vendor_no           =       lrssetup:vendor_no[2]
+        end
+    if l_alae = "Y" and
+       l_ulae = "N" then
+        begin
+        lrsdetail_alias:lae_resv                =       l_alae_resv * -1
+        lrsdetail_alias:loss_resv               =       0
+        lrsdetail_alias:alae                    =       "Y"
+        lrsdetail_alias:ulae                    =       "N"
+        if l_vendor <> 0 then
+            lrsdetail_alias:vendor_no           =       l_vendor
+        else
+            lrsdetail_alias:vendor_no           =       lrssetup:vendor_no[2]
+        end
+    lrsdetail_alias:misc                        =       l_misc
+    end
+
+End
+
+End

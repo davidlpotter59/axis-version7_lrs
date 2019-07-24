@@ -1,0 +1,134 @@
+%%
+Screen
+        Name = "lrsmt304" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic";
+        Windowtitle = "%a    %s Suspense Maintenance - Ver. 7.00    %m";
+        Domain = "lrssuspense" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number g_claim_no[11] ;
+
+        Local Unsigned Ascii Number L_SUSPENSE_CTR[2] ;
+
+        Access lrssuspense, Set lrssuspense:claim_no = g_claim_no, Using Second Index;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 22, 81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company:       __________   ________________________________________________ |
+| Claim No:      ___________  ________________________________________________ |
+| Requestor:     _______________                                               |
+| Suspense Date: __________                                                    |
+| Email:         __________________________________________________            |
+*------------------------------------------------------------------------------*
+|                      - - - R E M A R K S - - -                               |
+|                                                                              |
+|           __________________________________________________                 |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext;
+301     Begin
+        If FUNCTION = "ADD" Then
+            lrssuspense:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+        End
+        lrssuspense:COMPANY_ID/default
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1];
+401     Begin
+        If FUNCTION = "ADD" Then
+            lrssuspense:claim_no = G_claim_no
+        End
+        lrssuspense:claim_no/default               Mandatory;
+402     lrssetup:NAME[1];
+501     Begin
+        If FUNCTION = "ADD" Then
+            lrssuspense:REQUESTOR = USERNAME
+        End
+        lrssuspense:REQUESTOR/default       Mandatory ;
+601     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            If lrssuspense:REQUESTOR = "" Then
+                lrssuspense:REQUESTOR = USERNAME
+            lrssuspense:USER_ID = USERNAME
+            lrssuspense:TRANS_DATE = TODAYSDATE
+            lrssuspense:TRANS_CONSOLE = 0
+            End
+        End
+        lrssuspense:SUSPENSE_DATE ;
+601     Begin
+        If FUNCTION = "ADD" Then
+            Do CHECK_SUSPENSE_DATE
+        End
+        lrssuspense:SUSPENSE_DATE/displayonly ;
+701     lrssuspense:email ;
+1101    lrssuspense:REMARKS/freetextlines=10 ;
+
+} -- end of screen panel
+
+Procedure Definition
+
+Procedure CHECK_SUSPENSE_DATE
+Begin
+Access lrssuspense_ALIAS, Set lrssuspense_ALIAS:COMPANY_ID = lrssuspense:COMPANY_ID,
+                              lrssuspense_ALIAS:REQUESTOR  = lrssuspense:REQUESTOR, Generic
+
+L_SUSPENSE_CTR = 0
+while lrssuspense_ALIAS:COMPANY_ID = lrssuspense:COMPANY_ID and
+      lrssuspense_ALIAS:REQUESTOR  = lrssuspense:REQUESTOR
+        begin
+        If lrssuspense_ALIAS:SUSPENSE_DATE = lrssuspense:SUSPENSE_DATE Then
+            L_SUSPENSE_CTR = L_SUSPENSE_CTR + 1
+
+        Next lrssuspense_ALIAS
+        End
+
+If L_SUSPENSE_CTR > SFSDEFAULT:SUSPENSE Then
+    Warning "You have suspensed several items for this day"
+
+End
+
+End

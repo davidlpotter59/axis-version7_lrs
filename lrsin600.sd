@@ -1,0 +1,705 @@
+%%
+Screen
+        Name = "Lrsin600" ;
+        Type = "Detail" ;
+        Domain = "LRSCEDED" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic";
+        Windowtitle = "%s      %a Claims Reinsurance Ceded - Version 7.20     %m";
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_CAUSE_OF_LOSS[4] ;
+        Global String G_CAUSE_LOSS_SUBLINE[2] ;
+        Global Unsigned Ascii Number G_TRANS_TYPE[2] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+        Global Unsigned Ascii Number G_TREATY_NUMBER[5] ;
+        Global Unsigned Ascii Number G_TREATY_SUB_CODE[4] ;
+
+        Local Signed Ascii Number L_PROPERTY_EXCESS[9]=0/decimals=2;
+        Local Signed Ascii Number L_LIABILITY_EXCESS[9]=0/decimals=2;
+        Local String L_USERNAME[15]="" ;
+        Unsigned Ascii Number L_DIRECT[8]=0/decimals=2;
+        Unsigned Ascii Number L_PROPERTY_RETENTION[8]=0/decimals=0;
+        Unsigned Ascii Number L_LIABILITY_RETENTION[8]=0/decimals=0;
+        Unsigned Ascii Number L_PROPERTY_XOL[9]=0/decimals=2;
+        Unsigned Ascii Number L_PROPERTY_SURPLUS[9]=0/decimals=2;
+        Signed Ascii Number L_QUOTA_SHARE[9]=0/decimals=2;
+
+        /* percentages for direct and ceded */
+        Unsigned Ascii Number L_DIRECT_PERCENT[5]=0/decimals=4,
+                              L_PROP_XS_PERCENT[5]=0/decimals=4,
+                              L_SURPLUS_PERCENT[5]=0/decimals=4;
+
+        String L_ENTER[1];
+
+        Signed Ascii Number L_DIRECT_LAE[8]=0/decimals=2,
+                            L_PROPERTY_XOL_LAE[8]=0/decimals=2,
+                            L_SURPLUS_LAE[8]=0/decimals=2;
+
+        Signed Ascii Number L_TOTAL_CASE[8]=0/decimals=2;
+        Signed Ascii Number L_TOTAL_LAE[8]=0/decimals=2;
+
+/* these arrays are for the liability treaties, at the time that this
+   system was written there were only 3 active treaties, making the
+   the internal table handle 10 would give growth to the needs
+*/
+        Array[10] Of Signed Ascii Number L_LIAB[9]/decimals=2;
+        Array[10] Of Signed Ascii Number L_LIAB_PERCENT[5]/decimals=4;
+        Array[10] Of Signed Ascii Number L_LIAB_LAE[9]/decimals=2;
+
+        Signed Ascii Number L_DIRECT_LIAB[9]=0/decimals=2;
+        Signed Ascii Number L_DIRECT_LIAB_PERCENT[5]=0/decimals=4;
+        Signed Ascii Number L_DIRECT_LIAB_LAE[8]=0/decimals=2;
+        Signed Ascii Number L_REMAINING_LAE[8]=0/decimals=2;
+
+        Signed Ascii Number L_LIAB_TOTAL_INCURRED[9]=0/decimals=2;
+        Signed Ascii Number L_LIAB_TOTAL_REMAINING[9]=0/decimals=2;
+        Unsigned Ascii Number L_LIAB_SUB[2]=0/decimals=0;
+        Unsigned Ascii Number L_SURPLUS_RETENTION[8]=0/decimals=0;
+        Unsigned Ascii Number L_TOTAL_AMOUNT_SUBJECT[9]=0/decimals=0;
+        Signed Ascii Number L_PROP_TOTAL_REMAINING[9]=0/decimals=2;
+        Signed Ascii Number L_TOTAL_INCURRED[9]=0/dec=2;
+        Unsigned Ascii Number L_SUB[3]=0/decimals=0;
+
+/* holding variables */
+        Signed Ascii Number L_TOTAL_CASE_RESERVE[9]=0/decimals=2,
+                            L_TOTAL_CASE_RECOVERY[9]=0/decimals=2,
+                            L_TOTAL_LAE_RESERVE[9]=0/decimals=2,
+                            L_TOTAL_LAE_RECOVERY[9]=0/decimals=2,
+                            L_TOTAL_LIAB_CASE_RESERVE[9]=0/decimals=2,
+                            L_TOTAL_LIAB_CASE_RECOVERY[9]=0/decimals=2,
+                            L_TOTAL_LIAB_LAE_RESERVE[9]=0/decimals=2,
+                            L_TOTAL_LIAB_LAE_RECOVERY[9]=0/decimals=2,
+                            L_NET_CASE_RESERVE[9]=0/decimals=2,
+                            L_NET_CASE_RECOVERY[9]=0/decimals=2,
+                            L_NET_LAE_RESERVE[9]=0/decimals=2,
+                            L_NET_LAE_RECOVERY[9]=0/decimals=2;
+
+        Wdate L_STARTING_DATE = 01.01.2000; -- used for report only
+
+        Include "scipsprint.var"
+
+        Access LRSCEDED,
+           Set LRSCEDED:COMPANY_ID = G_COMPANY_ID ,
+               LRSCEDED:CLAIM_NO = G_CLAIM_NO, Generic ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+
+disable (delete_fn)
+disable (add_fn)
+disable (change_fn)
+disable (search_fn)
+disable (previous_fn)
+disable (next_fn)
+
+if sfscause:line_type one of "P" then
+begin
+    disable (liability_pl)
+end
+else
+begin
+    disable (property_pl)
+end
+
+Access Validation
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = LRSCEDED:COMPANY_ID,
+                     SFSEMAIL:USER_ID = L_USERNAME, Generic
+
+Access SFSLINE, Set SFSLINE:COMPANY_ID = LRSCEDED:COMPANY_ID,
+                    SFSLINE:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS,
+                    SFSLINE:LOB_SUBLINE = "00", Generic
+
+Skip If SFSEMAIL:TPA = "Y" And
+        SFSLINE:TPA = "N" ;
+
+screen at 1,1
+properties
+    {
+    layouttype  =  column
+    }
+{
+Panel tagged header_pl
+properties
+    {
+    borderstyle      =  raised
+    scrollbarpolicy  =  asneeded
+    }
+{
+%%
+                                                        _______________
+*---------------------------------------------------------------------------------------*
+| Company Id:    __________ __________________________________________________          |
+| Claim Number:  ___________ __________________________________________________         |
+| Cause:         ____ ____________________________________________________________      |
+| Sub Cause:     ____ Loss Date:__________ Total Amount Incurred: _______________       |
+| Trans Type:    __    Retentions Property: ___________ Liability: ___________          |
+| Policy Number: _________ Subject: _________ Premium Retention: ________ / _______     |
+| Policy Eff:    __________              Surplus Loss~Retention: ________ / _______     |
+| Agent Number:  ____ Name: __________________________________________________          |
+|                                                                                       |
+| Loss Resv        Loss Paid      ULAE Resv  ULAE Paid    ALAE Resv  ALAE Paid          |
+| ____________   _______________   _______   __________    _______  __________          |
+| Property             Reserve        Paid       %       LAE Resv   LAE Paid            |
+|~Quota~Share~~~~_______________~_____________~_________~__________~__________~         |
+|~Surplus~~~_____~______________~_____________~_________~__________~__________~         |
+*---------------------------------------------------------------------------------------*
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+0301    LRSCEDED:COMPANY_ID/displayonly
+        Include "companyhlp.inc"
+0302    SFSCOMPANY:NAME[1];
+0401    LRSCEDED:CLAIM_NO/displayonly;
+0402    SFPNAME:NAME[1];
+501     LRSCEDED:CAUSE_OF_LOSS/displayonly;
+502     SFSCAUSE:DESCRIPTION;
+601     LRSCEDED:CAUSE_LOSS_SUBLINE/mask="XXXX"/displayonly;
+602     LRSSETUP:LOSS_DATE/displayonly;
+0603    lrsceded:total_case/mask="ZZ,ZZZ,ZZZ.99-"/displayonly;
+701     LRSCEDED:TRANS_TYPE/displayonly;
+702     Begin
+            Do HOUSE_KEEPING
+            Do GET_PRSRECONTROL
+        End
+        lrsceded:PROPERTY_RETENTION/mask="ZZ,ZZZ,ZZZ"/displayonly;
+0703    lrsceded:liability_retention/mask="ZZ,ZZZ,ZZZ"/displayonly;
+0801    LRSCEDED:POLICY_NO/displayonly ;
+0802    LRSCEDED:AMOUNT_SUBJECT/mask="ZZ,ZZZ,ZZZ"/displayonly;
+0803    lrsceded:premium_surplus_retention/mask="Z,ZZZ,ZZZ"/displayonly;
+0804    lrsceded:premium_surplus_percent * 100 /mask="ZZ.ZZZ%"/displayonly;
+0901    lrsceded:eff_date /mask="MM/DD/YYYY"/displayonly;
+0902    lrsceded:losses_surplus_retention/mask="Z,ZZZ,ZZZ"/displayonly;
+0903    LRSCEDED:SURPLUS_PERCENT * 100 /mask="ZZ.ZZZ%"/displayonly;
+1001    SFPNAME:AGENT_NO ;
+1002    SFSAGENT:NAME[1];
+
+1301    LRSCEDED:LOSS_RESV/mask="(ZZ,ZZZ,ZZZ)"/default/displayonly  ;
+1302    LRSCEDED:LOSS_PAID/mask="(ZZ,ZZZ,ZZZ.99)"/default/displayonly  ;
+1303    LRSCEDED:ULAE_RESV/mask="(ZZ,ZZZ)"/default/displayonly  ;
+1304    LRSCEDED:ULAE_PAID/mask="(ZZ,ZZZ.99)"/default/displayonly  ;
+1305    LRSCEDED:ALAE_RESV/mask="(ZZ,ZZZ)"/default/displayonly  ;
+1306    LRSCEDED:ALAE_PAID/mask="(ZZ,ZZZ.99)"/default/displayonly  ;
+
+/*  put this after the assigments to the queryname */
+603     Begin
+            LRSCEDED:TOTAL_AMOUNT_CEDED = LRSCEDED:LOSS_RESV +
+            LRSCEDED:LOSS_PAID + LRSCEDED:ULAE_RESV +
+            LRSCEDED:ULAE_PAID + LRSCEDED:ALAE_RESV +
+            LRSCEDED:ALAE_PAID
+
+            L_TOTAL_CASE = LRSCEDED:LOSS_RESV+LRSCEDED:LOSS_PAID
+            L_TOTAL_LAE  = LRSCEDED:TOTAL_AMOUNT_CEDED - L_TOTAL_CASE
+        End
+        LRSCEDED:TOTAL_AMOUNT_CEDED/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly  ;
+
+/* Quota Share */
+1501    LRSCEDED:QUOTA_SHARE_CASE_RESERVE/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+1502    LRSCEDED:QUOTA_SHARE_CASE_RECOVERY/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+1503    LRSCEDED:QUOTA_SHARE_PERCENT /displayonly;
+1504    LRSCEDED:QUOTA_SHARE_LAE_RESERVE/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+1505    LRSCEDED:QUOTA_SHARE_LAE_RECOVERY/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+/* Surplus */
+1601    LRSCEDED:SURPLUS_TREATY_NUMBER/displayonly/mask="ZZZZ"/showasguidetext;
+1602    LRSCEDED:SURPLUS_CASE_RESERVE/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly ;
+1603    LRSCEDED:SURPLUS_CASE_RECOVERY/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+1604    LRSCEDED:SURPLUS_PERCENT * 100 /mask="ZZ.ZZZ%"/displayonly;
+1605    LRSCEDED:SURPLUS_LAE_RESERVE/mask="(ZZ,ZZZ,ZZZ.ZZ)"/displayonly;
+1606    LRSCEDED:SURPLUS_LAE_RECOVERY/mask="(ZZ,ZZZ,ZZZ.ZZ)"/displayonly;
+
+} -- end of header_pl
+
+CardDialog GUI at 1,1 tagged property_pl
+Properties
+        {
+        LayOutConstraints  =  Stretch
+        }
+{
+Panel
+Properties
+        {
+        ScrollBarPolicy  =  asneeded
+        Text             =  "&Property"
+        }
+{
+%%
+~Property~Excess~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+%%
+
+Components
+
+Fields
+
+/* Excess of Loss */
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[1]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:PROPERTY_XOL[1]/displayonly;
+LRSCEDED:XOL_CASE_RECOVERY[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XS_PERCENT[1] * 100/mask="ZZ.ZZZ%" /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[1] /mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_LAE_RECOVERY[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[2]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:PROPERTY_XOL[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_CASE_RECOVERY[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly ;
+LRSCEDED:PROPERTY_XS_PERCENT[2] * 100/mask="ZZ.ZZZ%"  /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[2] /mask="(ZZ,ZZZ,ZZZ.99)"/displayonly ;
+LRSCEDED:XOL_LAE_RECOVERY[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[3]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:XOL_CASE_RECOVERY[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XOL[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XS_PERCENT[3] * 100/mask="ZZ.ZZZ%"  /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_LAE_RECOVERY[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[4]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:XOL_CASE_RECOVERY[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XOL[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XS_PERCENT[4] * 100/mask="ZZ.ZZZ%"  /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_LAE_RECOVERY[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[5]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:XOL_CASE_RECOVERY[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XOL[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XS_PERCENT[5] * 100/mask="ZZ.ZZZ%"  /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_LAE_RECOVERY[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:PROPERTY_XOL_TREATY_NUMBER[6]/displayonly/mask="ZZZZ"/showasguidetext;
+LRSCEDED:XOL_CASE_RECOVERY[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XOL[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:PROPERTY_XS_PERCENT[6] * 100/mask="ZZ.ZZZ%"  /displayonly;
+LRSCEDED:PROPERTY_XOL_LAE[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:XOL_LAE_RECOVERY[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+} -- end of Property Panel
+
+Panel GUI at 1,1 tagged liability_pl
+Properties
+        {
+        ScrollBarPolicy  =  asneeded
+        Text             =  "&Liability"
+        }
+{
+%%
+~Liability~Excess~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+~~~~Treaty~_____~______________~_____________~_________~__________~__________~
+%%
+Components
+
+Fields
+/* liability amounts */
+LRSCEDED:LIAB_TREATY_NO[1]/mask="ZZZZ"/displayonly/showasguidetext ;
+LRSCEDED:LIAB_CASE_RESERVE[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[1] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RECOVERY[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[1]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:LIAB_TREATY_NO[2]/mask="ZZZZ"/displayonly/showasguidetext;
+LRSCEDED:LIAB_CASE_RESERVE[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[2] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[2]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:LIAB_TREATY_NO[3]/mask="ZZZZ"/displayonly/showasguidetext;
+LRSCEDED:LIAB_CASE_RESERVE[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[3] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RECOVERY[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[3]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:LIAB_TREATY_NO[4]/mask="ZZZZ"/displayonly/showasguidetext;
+LRSCEDED:LIAB_CASE_RESERVE[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[4] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RECOVERY[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[4]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:LIAB_TREATY_NO[5]/mask="ZZZZ"/displayonly/showasguidetext;
+LRSCEDED:LIAB_CASE_RESERVE[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[5] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RECOVERY[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[5]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+LRSCEDED:LIAB_TREATY_NO[6]/mask="ZZZZ"/displayonly/showasguidetext;
+LRSCEDED:LIAB_CASE_RESERVE[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_CASE_RECOVERY[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_PERCENT[6] * 100 /mask="ZZ.ZZZ%"/displayonly;
+LRSCEDED:LIAB_LAE_RECOVERY[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+LRSCEDED:LIAB_LAE_RESERVE[6]/mask="(ZZ,ZZZ,ZZZ.99)"/displayonly;
+
+} -- end of Liability Panel
+
+}
+
+} -- end of screens
+
+Screen Exit
+        If LRSCEDED:COMPANY_ID > "" Then G_COMPANY_ID = LRSCEDED:COMPANY_ID ;
+        If LRSCEDED:CLAIM_NO > 0 Then G_CLAIM_NO = LRSCEDED:CLAIM_NO ;
+        If LRSCEDED:CAUSE_OF_LOSS > 0
+        Then G_CAUSE_OF_LOSS = LRSCEDED:CAUSE_OF_LOSS ;
+        If LRSCEDED:CAUSE_LOSS_SUBLINE > ""
+        Then G_CAUSE_LOSS_SUBLINE = LRSCEDED:CAUSE_LOSS_SUBLINE ;
+        If LRSCEDED:TRANS_TYPE > 0 Then G_TRANS_TYPE = LRSCEDED:TRANS_TYPE ;
+        If LRSCEDED:SURPLUS_TREATY_NUMBER > 0
+        Then G_TREATY_NUMBER = LRSCEDED:SURPLUS_TREATY_NUMBER ;
+        If LRSCEDED:TREATY_SUB_CODE > 0
+        Then G_TREATY_SUB_CODE = LRSCEDED:TREATY_SUB_CODE ;
+
+Procedure Definition
+
+Procedure HOUSE_KEEPING
+Begin
+    L_DIRECT           = 0
+    L_DIRECT_PERCENT   = 0
+    L_PROP_XS_PERCENT  = 0
+    L_PROPERTY_XOL_LAE = 0
+    L_PROPERTY_SURPLUS = 0
+    L_SURPLUS_PERCENT  = 0
+    L_SURPLUS_LAE      = 0
+    L_DIRECT_LAE       = 0
+    L_PROPERTY_XOL     = 0
+    L_TOTAL_CASE       = 0
+    L_TOTAL_LAE        = 0
+    L_REMAINING_LAE    = 0
+
+    For L_LIAB_SUB = 1 To 10
+    Begin
+       L_LIAB[L_LIAB_SUB]         = 0
+       L_LIAB_PERCENT[L_LIAB_SUB] = 0
+       L_LIAB_LAE[L_LIAB_SUB]     = 0
+    End
+
+    L_DIRECT_LIAB          = 0
+    L_DIRECT_LIAB_PERCENT  = 0
+    L_DIRECT_LIAB_LAE      = 0
+--    L_LIAB_PERCENT         = 0
+    L_LIAB_TOTAL_INCURRED  = 0
+    L_LIAB_TOTAL_REMAINING = 0
+    L_PROP_TOTAL_REMAINING = 0
+    L_PROPERTY_RETENTION   = 0
+    L_LIABILITY_RETENTION  = 0
+    L_TOTAL_AMOUNT_SUBJECT = 0
+
+End -- end of house keeping
+
+Procedure GET_PRSRECONTROL
+Begin
+
+L_PROPERTY_EXCESS     = 0
+L_PROPERTY_RETENTION  = 0
+L_LIABILITY_RETENTION = 0
+
+Access PRSRECONTROL, Set PRSRECONTROL:COMPANY_ID = LRSCEDED:COMPANY_ID, Approximate
+
+While PRSRECONTROL:COMPANY_ID = LRSCEDED:COMPANY_ID
+Begin
+      If PRSRECONTROL:COMPANY_ID = LRSCEDED:COMPANY_ID And
+--         Year(PRSRECONTROL:EFF_DATE)   = Year(LRSSETUP:LOSS_DATE) Then
+           LRSSETUP:LOSS_DATE >= PRSRECONTROL:REFF_DATE And
+           LRSSETUP:LOSS_DATE <= PRSRECONTROL:REXP_DATE Then
+         Begin
+             L_PROPERTY_RETENTION  = PRSRECONTROL:PROPERTY_RETENTION
+             L_LIABILITY_RETENTION = PRSRECONTROL:LIABILITY_RETENTION
+             L_SURPLUS_RETENTION   = PRSRECONTROL:SURPLUS_RETAINED
+         End
+         Next PRSRECONTROL
+End
+
+End -- end of Property_retention procedure
+
+Procedure GET_TREATIES
+Begin
+
+L_TOTAL_AMOUNT_SUBJECT = PRSSUBJECT:TOTAL_AMOUNT_SUBJECT
+
+L_PROPERTY_XOL = 0
+L_PROPERTY_SURPLUS = 0
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID
+Begin
+
+   If PRSTREATY:TREATY_TYPE = "P" And
+      PRSTREATY:EFF_DATE    <= LRSSETUP:LOSS_DATE And
+      PRSTREATY:LINE_OF_BUSINESS = LRSSETUP:LINE_OF_BUSINESS Then
+      Begin
+          If LRSCEDED:TOTAL_AMOUNT_CEDED > PRSTREATY:UPPER_LIMIT +
+                                           L_PROPERTY_RETENTION  Then
+          Begin
+                L_PROPERTY_XOL = PRSTREATY:UPPER_LIMIT
+                L_PROPERTY_SURPLUS = LRSCEDED:TOTAL_AMOUNT_CEDED -
+                                    (L_PROPERTY_RETENTION +
+                                     L_PROPERTY_XOL)
+          End
+          Else Begin
+                L_PROPERTY_XOL = LRSCEDED:TOTAL_AMOUNT_CEDED -
+                                 L_PROPERTY_RETENTION
+                L_PROPERTY_SURPLUS = 0
+               End
+      End
+
+      Next PRSTREATY
+
+End
+
+End
+
+Procedure CALCULATE_PROPERTY
+Begin
+    L_PROPERTY_XOL = 0
+    L_REMAINING_LAE = L_TOTAL_LAE
+    L_PROP_TOTAL_REMAINING = LRSCEDED:TOTAL_CASE + L_TOTAL_LAE
+
+    Do GET_TREATIES
+
+    If L_TOTAL_AMOUNT_SUBJECT > L_SURPLUS_RETENTION Then
+    {
+       L_SURPLUS_PERCENT = (L_TOTAL_AMOUNT_SUBJECT -
+                            L_SURPLUS_RETENTION) Divide
+                           L_TOTAL_AMOUNT_SUBJECT
+       L_PROPERTY_SURPLUS = L_PROP_TOTAL_REMAINING  *   -- LRSCEDED:TOTAL_CASE *
+                            L_SURPLUS_PERCENT
+       L_SURPLUS_LAE      = L_TOTAL_LAE * L_SURPLUS_PERCENT
+       L_REMAINING_LAE    = L_REMAINING_LAE - L_SURPLUS_LAE
+       L_PROP_TOTAL_REMAINING = L_PROP_TOTAL_REMAINING -
+                                L_PROPERTY_SURPLUS
+    }
+    Else
+    {
+       L_SURPLUS_PERCENT  = 0
+       L_PROPERTY_SURPLUS = 0
+       L_SURPLUS_LAE      = 0
+    }
+
+    If L_PROP_TOTAL_REMAINING > 0 Then
+    Begin
+        If L_PROP_TOTAL_REMAINING > L_PROPERTY_RETENTION Then
+        Begin
+            L_DIRECT = L_PROPERTY_RETENTION
+            L_PROP_TOTAL_REMAINING = L_PROP_TOTAL_REMAINING -
+                                     L_DIRECT
+        End
+        Else
+        Begin
+            L_DIRECT = L_PROP_TOTAL_REMAINING
+            L_PROP_TOTAL_REMAINING = 0
+        End
+    End
+
+    If L_DIRECT <> 0 Then
+    {
+        L_DIRECT_PERCENT = L_DIRECT Divide (LRSCEDED:TOTAL_CASE + L_TOTAL_LAE)
+    }
+    Else
+    {
+        L_DIRECT_PERCENT = 0
+    }
+
+    L_DIRECT_LAE = L_TOTAL_LAE * L_DIRECT_PERCENT
+
+    If L_PROP_TOTAL_REMAINING > 0 Then
+    Begin
+        L_PROPERTY_XOL    = L_PROP_TOTAL_REMAINING
+        L_PROP_TOTAL_REMAINING = L_PROP_TOTAL_REMAINING -
+                                 L_PROPERTY_XOL
+        L_PROP_XS_PERCENT = L_PROPERTY_XOL Divide LRSCEDED:TOTAL_AMOUNT_CEDED
+        L_PROPERTY_XOL_LAE = L_TOTAL_LAE * L_PROP_XS_PERCENT
+    End
+    Else
+    Begin
+       L_PROPERTY_XOL = 0
+    End
+
+    L_REMAINING_LAE = L_REMAINING_LAE - (L_DIRECT_LAE + L_PROPERTY_XOL_LAE +
+                                         L_SURPLUS_LAE)
+
+/*  apply the rounding problem to surplus, then xol then direct */
+/*    If L_REMAINING_LAE <> 0 Then -- rounding problem found
+    {
+       If L_SURPLUS_LAE <> 0 Then
+       {
+          L_SURPLUS_LAE = L_SURPLUS_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+       Else If L_PROPERTY_XOL_LAE <> 0 Then
+       {
+          L_PROPERTY_XOL_LAE = L_PROPERTY_XOL_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+       Else
+       {
+          L_DIRECT_LAE = L_DIRECT_LAE + L_REMAINING_LAE
+          L_REMAINING_LAE = 0
+       }
+    }
+*/
+End -- end of calculate property
+
+Procedure CALCULATE_LIABILITY
+Begin
+
+    /* house cleaning */
+    L_DIRECT_LIAB  = 0
+
+    L_LIAB_TOTAL_INCURRED = L_TOTAL_CASE + L_TOTAL_LAE
+
+    L_LIAB_TOTAL_REMAINING = L_LIAB_TOTAL_INCURRED
+
+    L_REMAINING_LAE = L_TOTAL_LAE
+
+    For L_LIAB_SUB = 1 To 10
+    Begin
+        L_LIAB[L_LIAB_SUB] = 0
+        L_LIAB_PERCENT[L_LIAB_SUB] = 0
+        L_LIAB_LAE[L_LIAB_SUB] = 0
+    End
+    L_LIAB_SUB = 0
+    /* end of house cleaning */
+
+/* calcuate direct first, if direct uses up the entire incurred
+   then dont waste system resources and perform the following loop, sounds
+   good but insignificant use to be honest
+*/
+
+If L_LIAB_TOTAL_INCURRED <= L_LIABILITY_RETENTION Then
+Begin
+    L_DIRECT_LIAB = L_LIAB_TOTAL_INCURRED
+    L_LIAB_TOTAL_REMAINING = 0
+End
+Else
+Begin
+    L_DIRECT_LIAB = L_LIABILITY_RETENTION
+    L_LIAB_TOTAL_REMAINING = L_LIAB_TOTAL_INCURRED -
+                             L_DIRECT_LIAB
+End
+
+If L_DIRECT_LIAB <> 0 Then
+{
+   L_DIRECT_LIAB_PERCENT = L_DIRECT_LIAB Divide LRSCEDED:TOTAL_AMOUNT_CEDED
+   L_DIRECT_LIAB_LAE     = L_TOTAL_LAE * L_DIRECT_LIAB_PERCENT
+   L_REMAINING_LAE       = L_REMAINING_LAE - L_DIRECT_LIAB_LAE
+}
+Else
+{
+   L_DIRECT_LIAB_PERCENT = 0
+   L_DIRECT_LIAB_LAE     = 0
+   L_REMAINING_LAE       = 0
+}
+
+If L_LIAB_TOTAL_REMAINING <> 0 Then
+Begin
+
+Access PRSTREATY, Set PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID,Approximate
+
+While PRSTREATY:COMPANY_ID = LRSCEDED:COMPANY_ID
+Begin
+     If PRSTREATY:TREATY_TYPE = SFSCAUSE:LINE_TYPE Then -- should be L
+     Begin
+         If PRSTREATY:EFF_DATE <= LRSSETUP:LOSS_DATE Then -- treaty is good
+         Begin
+             If L_LIAB_TOTAL_REMAINING <> 0 Then
+             Begin
+                 L_LIAB_SUB = L_LIAB_SUB + 1
+                 If L_LIAB_TOTAL_INCURRED > PRSTREATY:UPPER_LIMIT Then
+                 Begin
+                     L_LIAB[L_LIAB_SUB] = PRSTREATY:UPPER_LIMIT -
+                                          PRSTREATY:LOWER_LIMIT
+                     L_LIAB_TOTAL_REMAINING = L_LIAB_TOTAL_REMAINING -
+                                              L_LIAB[L_LIAB_SUB]
+                     L_LIAB_PERCENT[L_LIAB_SUB] = L_LIAB[L_LIAB_SUB] Divide
+                                                  L_LIAB_TOTAL_INCURRED
+                     L_LIAB_LAE[L_LIAB_SUB] = L_TOTAL_LAE *
+                                              L_LIAB_PERCENT[L_LIAB_SUB]
+                     L_REMAINING_LAE = L_REMAINING_LAE - L_LIAB_LAE[L_LIAB_SUB]
+                 End
+                 Else
+                 Begin
+                     L_LIAB[L_LIAB_SUB] = L_LIAB_TOTAL_REMAINING
+                     L_LIAB_TOTAL_REMAINING = L_LIAB_TOTAL_REMAINING -
+                                              L_LIAB[L_LIAB_SUB]
+                     L_LIAB_PERCENT[L_LIAB_SUB] = L_LIAB[L_LIAB_SUB] Divide
+                                                  L_LIAB_TOTAL_INCURRED
+                     L_LIAB_LAE[L_LIAB_SUB] = L_TOTAL_LAE *
+                                              L_LIAB_PERCENT[L_LIAB_SUB]
+                     L_REMAINING_LAE = L_REMAINING_LAE - L_LIAB_LAE[L_LIAB_SUB]
+                 End
+             End
+          End
+     End
+
+     Next PRSTREATY
+
+End
+
+     If L_REMAINING_LAE <> 0 Then -- found rounding problems
+     {
+        L_LIAB_LAE[L_LIAB_SUB] = L_LIAB_LAE[L_LIAB_SUB] + L_REMAINING_LAE
+     }
+
+End
+End  -- end of calculate liability
+
+procedure scips_macro
+begin
+
+i_scips_select = "Y"
+if i_scips_select = "Y" then
+begin
+    i_scips_param_name = lowercase(trun(programid)) + trun(str(pid)) + ".par"
+    writefile(i_scips_param_name,"%d<nl>",l_starting_date)
+    writefile(i_scips_param_name,"%d<nl>",todaysdate)
+    writefile(i_scips_param_name,"%n<nl>",lrsceded:claim_no)
+end
+
+include "scipsprint.pro"
+
+End

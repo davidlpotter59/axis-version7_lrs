@@ -1,0 +1,101 @@
+%%
+Screen
+        Name = "Lrsmt106" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "Dynamic" ;
+        highlight = underscore ;
+        Windowtitle = "%a     %s Loss Default Reserve - Ver 7.00     %m"
+        Domain="LRSRESV" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 17,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id: __________  __________________________________________________   |
+*------------------------------------------------------------------------------*
+| Line Of Business:      ____ ________________________________________         |
+| Lob Subline:             __ ________________________________________         |
+| Cause Of Loss:         ____ _______________________________________________  |
+| Cause Of Loss Subline:  ___ _______________________________________________  |
+| Effective Date:        __________                                            |
+| Case Amount:           ________                                              |
+| Lae Amount:            _________                                             |
+| Ulae:                  _                                                     |
+| Alae:                  _                                                     |
+*------------------------------------------------------------------------------*
+
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            LRSRESV:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+        End
+        LRSRESV:COMPANY_ID/default         Mandatory
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1]/displayonly ;
+501     LRSRESV:LINE_OF_BUSINESS                Mandatory
+        Include "linehlp.inc"
+502     SFSLINE:DESCRIPTION/displayonly ;
+601     LRSRESV:LOB_SUBLINE                     Mandatory
+        If LRSRESV:LOB_SUBLINE <> SFSLINE_ALIAS:LOB_SUBLINE Then
+            Error 1227
+
+        Activehelp SFSLINE_ALIAS:LOB_SUBLINE,
+                   SFSLINE_ALIAS:DESCRIPTION ;
+602     SFSLINE_ALIAS:DESCRIPTION;
+701     LRSRESV:CAUSE_OF_LOSS                   Mandatory
+        If LRSRESV:CAUSE_OF_LOSS <> SFSCAUSE:CAUSE_OF_LOSS Then
+            Error 1214
+
+        Activehelp SFSCAUSE_ALIAS:CAUSE_OF_LOSS ,
+                   SFSCAUSE_ALIAS:DESCRIPTION ;
+702     SFSCAUSE:DESCRIPTION;
+801     LRSRESV:CAUSE_LOSS_SUBLINE              Mandatory
+        If LRSRESV:CAUSE_LOSS_SUBLINE <> SFSCAUSE_ALT:CAUSE_LOSS_SUBLINE Then
+            Error 1214
+
+        Activehelp SFSCAUSE_ALT1:CAUSE_LOSS_SUBLINE,
+                   SFSCAUSE_ALT1:DESCRIPTION ;
+802     SFSCAUSE_ALT:DESCRIPTION;
+901     Begin
+        If FUNCTION = "ADD" Then
+            LRSRESV:EFF_DATE = 01.01.1990
+        End
+        LRSRESV:EFF_DATE/default                Mandatory;
+1001    LRSRESV:CASE_AMOUNT;
+1101    LRSRESV:LAE_AMOUNT;
+1201    LRSRESV:ULAE;
+1301    LRSRESV:ALAE;
+
+}  -- end of screen panel
+
+End

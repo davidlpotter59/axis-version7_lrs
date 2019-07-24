@@ -1,0 +1,136 @@
+%%
+Screen
+        Name = "lrsmt01h" ;
+        Type = "Detail" ;
+        padcharacter = space ;
+        highlight = underscore ;
+        screensize = "dynamic" ;
+        windowtitle = "%a     %s Large Loss - Ver 7.00     %m" ;
+        domain="lrslargeloss" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        global string g_company_id[10] ;
+
+        global unsigned ascii number g_claim_no[11] ;
+
+        access lrslargeloss, set lrslargeloss:company_id = g_company_id,
+                                 lrslargeloss:claim_no   = g_claim_no, generic
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+access validation
+if lrslargeloss:company_id <> g_company_id or
+   lrslargeloss:claim_no <> g_claim_no then
+    error 1000 ;
+
+screen
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company ID:       __________  ______________________________________________ |
+| Claim Number:     ___________                                                |
+| Transaction Date: __________                                                 |
+*------------------------------------------------------------------------------*
+| Loss Reserve:     _________ ULAE Reserve: _________ ALAE Reserve: _________  |
+| Loss Description: __________________________________________________         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     begin
+        if function one of "ADD" then
+            begin
+            lrslargeloss:company_id = g_company_id
+            lrslargeloss:claim_no   = g_claim_no
+            lrslargeloss:trans_date = todaysdate
+            end
+        end
+        LRSLARGELOSS:COMPANY_ID/displayonly
+        include "companyhlp.inc"
+302     sfscompany:name[1] ;
+401     LRSLARGELOSS:CLAIM_NO/displayonly ;
+501     LRSLARGELOSS:TRANS_DATE/displayonly ;
+701     LRSLARGELOSS:INITIAL_RESERVE[1]/mask="Z,ZZZ,ZZZ";
+702     lrslargeloss:initial_reserve[2]/mask="Z,ZZZ,ZZZ";
+703     lrslargeloss:initial_reserve[3]/mask="Z,ZZZ,ZZZ";
+801     LRSLARGELOSS:LOSS_DESCRIPTION/freetextlines=10 ;
+
+}
+
+update
+if updateok = "YES" and
+   abort = "NO" then
+    begin
+    if function one of "ADD" then
+        begin
+        access lrssetup, set lrssetup:company_id = g_company_id,
+                             lrssetup:claim_no   = g_claim_no, generic
+
+        if lrssetup:company_id = g_company_id and
+           lrssetup:claim_no   = g_claim_no then
+            begin
+            if lrssetup:large_loss = 0 then
+                begin
+                change lrssetup
+                    begin
+                    lrssetup:large_loss = 1
+                    end
+                end
+            end
+        end
+    else
+    if function one of "DELETE" then
+        begin
+        access lrssetup, set lrssetup:company_id = g_company_id,
+                             lrssetup:claim_no   = g_claim_no, generic
+
+        if lrssetup:company_id = g_company_id and
+           lrssetup:claim_no   = g_claim_no then
+            begin
+            if lrssetup:large_loss = 1 then
+                begin
+                change lrssetup
+                    begin
+                    lrssetup:large_loss = 0
+                    end
+                end
+            end
+        end
+    end
+
+End

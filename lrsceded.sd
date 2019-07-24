@@ -1,0 +1,107 @@
+SCIPS(c) Insurance Systems                             Function [____________]
+Screen 3. LRSCEDED Update Screen
+ 1. Company Id:            __________  19. Transaction Date:    __________
+ 2. Claim Number:          ___________ 20. Transaction Code:             ____
+ 3. Line Type:             _           21. Percent Ceded:              ______
+ 4. Policy Number:           _________ 22. Amount Subject:         __________
+ 5. Record Rdf:-
+_______________________________________________________________________________
+ 6. Line Of Business:             ____ 23. Surplus Percent:            ______
+ 7. Lob Subline:           __          24. Surplus Lae:            __________
+ 8. Cause Of Loss:                ____ 25. Direct:              _____________
+ 9. Cause Of Loss Subline: __          26. Direct Percent:             ______
+10. Trans Type:                     __ 27. Direct Lae:             __________
+11. Surplus Treaty Number:       _____ 28. Direct Liab:         _____________
+12. Treaty Sub Code:              ____ 29. Direct Liab Percent:        ______
+13. Loss Resv:                ________ 30. Direct Liab Lae:       ___________
+14. Loss Paid:             ___________ 31. Property Xol:        _____________
+15. Ulae Resv:                ________ 32. Property Xs Percent:        ______
+16. Ulae Paid:             ___________ 33. Property Xol Lae:       __________
+17. Alae Resv:                ________ 34. Property Surplus:    _____________
+18. Alae Paid:             ___________ 35. Liab Treaty No:              _____
+%%
+Screen
+        Name = "Lrsceded" ;
+        Type = "Detail" ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global String G_LINE_TYPE[1] ;
+
+        Access LRSCEDED,
+           Set LRSCEDED:COMPANY_ID = G_COMPANY_ID ,
+               LRSCEDED:CLAIM_NO = G_CLAIM_NO ,
+               LRSCEDED:LINE_TYPE = G_LINE_TYPE ;
+
+
+        Include "STDKEYS.INC"
+
+Functions
+        Add;            /* Add a record */
+        Change;         /* Change an existing record */
+        Delete;         /* Delete an existing record */
+
+        Find ;          /* Select a record using an exact key */
+        Search;         /* Select a record using an approximate key */
+        Next;           /* Display the next record(s) in key sequence */
+        Previous;       /* Display the previous record(s) in key sequence */
+        View;           /* View the contents of freetext fields */
+
+        Page/noreturn;  /* Display a different page - no going back */
+
+"Back"  Return;         /* Back to previous screen */
+"Exit"  Return;
+        Return;
+
+"Bye"   Stop;           /* Terminate this session */
+        Stop;
+
+        Print;          /* Print the screen on the default printer */
+"Cq"    Proc ":CLI CQ"; /* Enter Cyberquery */
+"Cli"   Proc ":CLI";    /* Push to the CLI */
+
+Fields
+        FUNCTION ;
+301     LRSCEDED:COMPANY_ID                     Mandatory;
+401     LRSCEDED:CLAIM_NO                       Mandatory;
+501     LRSCEDED:LINE_TYPE                      Mandatory;
+601     LRSCEDED:POLICY_NO                      Mandatory;
+801     LRSCEDED:RECORD_RDF;
+901     LRSCEDED:LINE_OF_BUSINESS;
+1001    LRSCEDED:LOB_SUBLINE;
+1101    LRSCEDED:CAUSE_OF_LOSS;
+1201    LRSCEDED:CAUSE_LOSS_SUBLINE;
+1301    LRSCEDED:TRANS_TYPE;
+1401    LRSCEDED:SURPLUS_TREATY_NUMBER;
+1501    LRSCEDED:TREATY_SUB_CODE;
+1601    LRSCEDED:LOSS_RESV;
+1701    LRSCEDED:LOSS_PAID;
+1801    LRSCEDED:ULAE_RESV;
+1901    LRSCEDED:ULAE_PAID;
+2001    LRSCEDED:ALAE_RESV;
+2101    LRSCEDED:ALAE_PAID;
+302     LRSCEDED:TRANS_DATE;
+402     LRSCEDED:TRANS_CODE;
+502     LRSCEDED:PERCENT_CEDED;
+602     LRSCEDED:AMOUNT_SUBJECT;
+902     LRSCEDED:SURPLUS_PERCENT;
+1002    LRSCEDED:SURPLUS_LAE;
+1102    LRSCEDED:DIRECT;
+1202    LRSCEDED:DIRECT_PERCENT;
+1302    LRSCEDED:DIRECT_LAE;
+1402    LRSCEDED:DIRECT_LIAB;
+1502    LRSCEDED:DIRECT_LIAB_PERCENT;
+1602    LRSCEDED:DIRECT_LIAB_LAE;
+1702    LRSCEDED:PROPERTY_XOL[1];
+1802    LRSCEDED:PROPERTY_XS_PERCENT[1];
+1902    LRSCEDED:PROPERTY_XOL_LAE[1];
+2002    LRSCEDED:PROPERTY_SURPLUS;
+2102    LRSCEDED:LIAB_TREATY_NO[1];
+
+Screen Exit
+        If LRSCEDED:COMPANY_ID > "" Then G_COMPANY_ID = LRSCEDED:COMPANY_ID ;
+        If LRSCEDED:CLAIM_NO > 0 Then G_CLAIM_NO = LRSCEDED:CLAIM_NO ;
+        If LRSCEDED:LINE_TYPE > "" Then G_LINE_TYPE = LRSCEDED:LINE_TYPE ;
+
+
+End

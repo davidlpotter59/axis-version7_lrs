@@ -1,0 +1,135 @@
+%%
+Screen
+        Name = "Lrsmt990" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize = "dynamic";
+        Windowtitle="%s     %a Correct Lrssummary Records - Ver. 7.00     %m";
+        domain = "lrssummary" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ,
+                      G_LOB_SUBLINE[2] ,
+                      G_CAUSE_LOSS_SUBLINE[2] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_LINE_OF_BUSINESS[4] ,
+                                     G_CAUSE_OF_LOSS[4] ,
+                                     G_TRANS_TYPE[2] ,
+                                     G_SUB_CODE[4] ;
+
+        local string l_system_id[15] ,
+                     l_username[15] ;
+
+        local unsigned ascii number l_abort_program[1] ;
+
+        Access LRSSUMMARY,
+           Set LRSSUMMARY:COMPANY_ID         = G_COMPANY_ID ,
+               LRSSUMMARY:CLAIM_NO           = G_CLAIM_NO ,
+               LRSSUMMARY:LINE_OF_BUSINESS   = G_LINE_OF_BUSINESS ,
+               LRSSUMMARY:LOB_SUBLINE        = G_LOB_SUBLINE ,
+               LRSSUMMARY:CAUSE_OF_LOSS      = G_CAUSE_OF_LOSS ,
+               LRSSUMMARY:CAUSE_LOSS_SUBLINE = G_CAUSE_LOSS_SUBLINE , generic
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+if g_company_id = "" then
+    begin
+    g_company_id = sfsdefault:company_id
+    end
+
+l_username      = username/spacefill
+l_system_id     = "lrs"/spacefill
+l_abort_program = 0
+
+access sfssecurity_claims, set sfssecurity_claims:company_id = g_company_id,
+                               sfssecurity_claims:user_id    = l_username,
+                               sfssecurity_claims:system_id  = l_system_id, generic
+
+if sfssecurity_claims:add_claims not one of 1 then
+    begin
+    disable (add_fn)
+    end
+
+if sfssecurity_claims:change_claims not one of 1 then
+    begin
+    disable (change_fn)
+    end
+
+if sfssecurity_claims:delete_claims not one of 1 then
+    begin
+    disable (delete_fn)
+    end
+
+screen at 2,1 to 18,80
+{
+%%
+                                                        _______________
+*-----------------------------------------------------------------------------*
+| Company Id:            __________ ________________________________________  |
+| Claim Number:          ___________                                          |
+| Line Of Business:      ____       ________________________________________  |
+| Lob Subline:           __                                                   |
+| Cause Of Loss:         ____                                                 |
+| Cause Of Loss Subline: __                                                   |
+| Sub code:              ____                                                 |
+*-----------------------------------------------------------------------------*
+| Loss Resv:             ____________                                         |
+| Loss Paid:             ______________                                       |
+| Ulae Resv:             ___________                                          |
+| Ulae Paid:             ______________                                       |
+| Alae Resv:             ___________                                          |
+| Alae Paid:             ______________                                       |
+| Status:                __                                                   |
+*-----------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+            Access SFSCOMPANY, Set SFSCOMPANY:COMPANY_ID = LRSSUMMARY:COMPANY_ID
+        End
+        LRSSUMMARY:COMPANY_ID                   Mandatory
+        include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1,40];
+401     LRSSUMMARY:CLAIM_NO                     Mandatory;
+501     LRSSUMMARY:LINE_OF_BUSINESS             Mandatory;
+502     SFSLINE:DESCRIPTION[1,40];
+601     LRSSUMMARY:LOB_SUBLINE                  Mandatory;
+701     LRSSUMMARY:CAUSE_OF_LOSS                Mandatory;
+801     LRSSUMMARY:CAUSE_LOSS_SUBLINE           Mandatory;
+901     lrssummary:sub_code ;
+1101    LRSSUMMARY:LOSS_RESV;
+1201    LRSSUMMARY:LOSS_PAID;
+1301    LRSSUMMARY:ULAE_RESV;
+1401    LRSSUMMARY:ULAE_PAID;
+1501    LRSSUMMARY:ALAE_RESV;
+1601    LRSSUMMARY:ALAE_PAID;
+1701    lrssummary:status ;
+
+} -- end of screen panel
+
+End

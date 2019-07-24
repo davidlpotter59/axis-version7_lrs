@@ -1,0 +1,93 @@
+%%
+Screen
+        Name = "lrsmt10a" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic";
+        highlight = underscore ;
+        Windowtitle = "%a     %s Effect Reserve - Ver 7.00     %m";
+        Domain = "LRSSETUP" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_RESERVE_UPDATE[1],
+                      G_COMPANY_ID[10],
+                      G_LOSS_CLOSE[1],
+                      G_ULAE_CLOSE[1],
+                      G_ALAE_CLOSE[1] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     g_status[1] ;
+
+        Access LRSSETUP, Set LRSSETUP:COMPANY_ID = G_COMPANY_ID ,
+                             LRSSETUP:CLAIM_NO   = G_CLAIM_NO, Generic;
+
+        Include "stdkeys7.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Screen Entry
+disable(add_fn)
+disable(delete_fn)
+G_STATUS = 0 ;
+
+screen at 2,1 to 11, 80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+| Do you want this loss adjustment to effect the reserve?    _                 |
+*------------------------------------------------------------------------------*
+| Please answer "Y" to the part you want closed:                               |
+|                                                                              |
+| LOSS RESERVE:    _    ULAE RESERVE:     _    ALAE RESERVE:  _                |
+|                                                                              |
+| Claim Status: [R _~Closed~With~Payment  _~Closed~Without~Payment  R]         |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "CHANGE" Then
+            G_RESERVE_UPDATE = "Y"
+        End
+        G_RESERVE_UPDATE/default/upper
+        If G_RESERVE_UPDATE <> "N" And
+           G_RESERVE_UPDATE <> "Y" Then
+            Error 1211 ;
+701     Begin
+        If FUNCTION = "CHANGE" Then
+            G_LOSS_CLOSE = "N"
+        End
+        G_LOSS_CLOSE/default/uppercase
+        If G_LOSS_CLOSE <> "N" And
+           G_LOSS_CLOSE <> "Y" Then
+            Error 1211 ;
+702     Begin
+        If FUNCTION = "CHANGE" Then
+            G_ULAE_CLOSE  = "N"
+        End
+        G_ULAE_CLOSE /default/uppercase
+        If G_ULAE_CLOSE <> "N" And
+           G_ULAE_CLOSE <> "Y" Then
+            Error 1211 ;
+703     Begin
+        If FUNCTION = "CHANGE" Then
+            G_ALAE_CLOSE   = "N"
+        End
+        G_ALAE_CLOSE /default/uppercase
+        If G_ALAE_CLOSE <> "N" And
+           G_ALAE_CLOSE <> "Y" Then
+            Error 1211
+        If G_LOSS_CLOSE <> "Y" And
+           G_ULAE_CLOSE <> "Y" And
+           G_ALAE_CLOSE <> "Y" Then
+            Error 1425 ;
+901     G_STATUS/values="1,2" ;
+
+} -- end of screen panel
+
+End

@@ -1,0 +1,46 @@
+%%
+Screen
+        Name = "lrsmt10b" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Windowtitle = "%a     %s Use Insured as Claimant - Ver 7.00     %m";
+        Screensize = "dynamic";
+        Highlight = underscore ;
+        Domain = "LRSSUMMARY" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String  G_INSURED[1],
+                       G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSSUMMARY, Set LRSSUMMARY:COMPANY_ID = G_COMPANY_ID ,
+                               LRSSUMMARY:CLAIM_NO   = G_CLAIM_NO , Generic;
+
+        Include "stdkeys7.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+screen at 2,1 to 5, 80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+| Do you want to use the Insured as your Claimant?    _                        |
+*------------------------------------------------------------------------------*
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "CHANGE" Then
+            G_INSURED = "Y"
+        End
+        G_INSURED/default/upper/checkbox/values="N,Y"  ;
+
+} -- end of screen panel
+
+End

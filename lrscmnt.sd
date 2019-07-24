@@ -1,0 +1,74 @@
+                                                                  ____________
+*-----------------------------------------------------------------------*
+
+
+ 1. Company Id:       __________
+ 2. Claim Number:     ___________
+ 3. Sub Code:                ____
+ 4. Name Key:         __________________________________________________
+ 5. Name:             __________________________________________________
+ 6. Address:          __________________________________________________
+ 7. City:             ______________________________
+ 8. State:            __
+ 9. State Code:                __
+10. Str Zipcode:      __________
+11. Zipcode:          __________
+12. Telephone Number: ________________
+13. Minor:            ___
+14. Age:                       __
+15. Expansion:-
+_______________________________________________________________________________
+
+%%
+Screen
+        Name = "Lrscmnt" ;
+        Type = "Detail" ;
+
+        Global String G_COMPANY_ID[10] ;
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+        Global Unsigned Ascii Number G_SUB_CODE[4] ;
+
+        Access LRSCMNT,
+           Set LRSCMNT:COMPANY_ID = G_COMPANY_ID ,
+               LRSCMNT:CLAIM_NO = G_CLAIM_NO ,
+               LRSCMNT:SUB_CODE = G_SUB_CODE ;
+
+
+
+           padcharacter = space ;
+           highlight = underscore ;
+           screensize = "dynamic";
+
+        Include "STDKEYS.INC"
+
+Functions
+
+        include "STDFUNC.INC"
+
+        -- include "SCIPSPRINT.FUN"
+
+Fields
+        FUNCTION ;
+501     LRSCMNT:COMPANY_ID                      Mandatory;
+601     LRSCMNT:CLAIM_NO                        Mandatory;
+701     LRSCMNT:SUB_CODE                        Mandatory;
+801     LRSCMNT:NAME_KEY                        Mandatory;
+901     LRSCMNT:NAME;
+1001    LRSCMNT:ADDRESS;
+1101    LRSCMNT:CITY;
+1201    LRSCMNT:STR_STATE;
+1301    LRSCMNT:STATE;
+1401    LRSCMNT:STR_ZIPCODE;
+1501    LRSCMNT:ZIPCODE;
+1601    LRSCMNT:TELEPHONE;
+1701    LRSCMNT:MINOR;
+1801    LRSCMNT:AGE;
+2001    LRSCMNT:EXPANSION;
+
+Screen Exit
+        If LRSCMNT:COMPANY_ID > "" Then G_COMPANY_ID = LRSCMNT:COMPANY_ID ;
+        If LRSCMNT:CLAIM_NO > 0 Then G_CLAIM_NO = LRSCMNT:CLAIM_NO ;
+        If LRSCMNT:SUB_CODE > 0 Then G_SUB_CODE = LRSCMNT:SUB_CODE ;
+
+
+End

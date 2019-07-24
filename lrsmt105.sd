@@ -1,0 +1,77 @@
+%%
+Screen
+        Name = "Lrsmt105" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Screensize = "dynamic" ;
+        Highlight = underscore ;
+        Windowtitle = "%a     %s Loss Trans Types - Ver 7.00     %m" ;
+        Domain = "LRSTRANSTYPE";
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Local String L_FUNCTION[10] ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen at 2,1 to 13,80
+{
+%%
+                                                       _______________
+*------------------------------------------------------------------------------*
+| Company Id:  __________ __________________________________________________   |
+| Trans Type:  __                                                              |
+*------------------------------------------------------------------------------*
+| Description:     ______________________________                              |
+| Display on Help: _                                                           |
+| Function:        _  __________                                               |
+*------------------------------------------------------------------------------*
+
+
+
+
+
+%%
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     LRSTRANSTYPE:COMPANY_ID                 Mandatory
+        Activehelp SFSCOMPANY:COMPANY_ID,NAME ;
+302     SFSCOMPANY:NAME[1]/displayonly ;
+401     LRSTRANSTYPE:TRANS_TYPE                 Mandatory;
+601     LRSTRANSTYPE:DESCRIPTION;
+701     LRSTRANSTYPE:DISPLAY_ON_HELP/uppercase
+        If LRSTRANSTYPE:DISPLAY_ON_HELP <> "N" And
+           LRSTRANSTYPE:DISPLAY_ON_HELP <> "Y" Then
+            Error 1211 ;
+801     LRSTRANSTYPE:FUNCTION_DISPLAY ;
+802     Begin
+        Switch(LRSTRANSTYPE:FUNCTION_DISPLAY)
+          Case "A" : L_FUNCTION = "APPEND"
+          Default  : L_FUNCTION = "CHANGE"
+          End
+        End
+        L_FUNCTION/displayonly ;
+
+}  -- end of screen panel
+
+End

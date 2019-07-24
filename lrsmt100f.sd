@@ -1,0 +1,147 @@
+%%
+Screen
+        Name = "lrsmt100f" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a    %s Driver Information - Ver. 7.00     %m" ;
+        Domain = "CAPDRIVER" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_POLICY_NO[9] ,
+                                     G_YEAR[4],
+                                     G_END_SEQUENCE[4] ;
+
+        Local Unsigned Ascii Number L_SUB_CODE[4] ;
+
+        Local String L_USERNAME[15]="" ;
+
+        Access CAPDRIVER,
+           Set CAPDRIVER:POLICY_NO = G_POLICY_NO ,
+               CAPDRIVER:POL_YEAR = G_YEAR,
+               CAPDRIVER:END_SEQUENCE = G_END_SEQUENCE, Approximate ;
+
+        Include "stdkeys7.inc"
+
+Style Definition
+
+       Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+} -- must have this here to allow for application specific includes to be
+  -- added above
+
+Toolbar Definition
+
+       Include "stdtoolbar7.inc"
+
+}
+
+Access Validation
+If CAPDRIVER:POLICY_NO <> G_POLICY_NO Or
+   CAPDRIVER:POL_YEAR <> G_YEAR Or
+   CAPDRIVER:END_SEQUENCE <> G_END_SEQUENCE Then
+    Error 1000
+
+L_USERNAME = USERNAME
+Access SFSEMAIL, Set SFSEMAIL:COMPANY_ID = SFPNAME:COMPANY_ID,
+                     SFSEMAIL:USER_ID    = L_USERNAME, Generic
+
+Skip If SFSEMAIL:TPA = "Y" And
+        SFSLINE:TPA  = "N" ;
+
+screen at 2,1 to 18,81
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Policy No:            _________  ____  ____                                  |
+| Name:                 __________________________________________________     |
+*------------------------------------------------------------------------------*
+| Sex: [R _~Male               Marital Status:  [R _~Single                    |
+|         _~Female R]                              _~Married  R]               |
+*------------------------------------------------------------------------------*
+| Relation To Insured:  ____________________                                   |
+| Date of Birth:        __________                                             |
+| Accidents/Violations (Y/N):    _                                             |
+| Years Licensed:       __                                                     |
+| Good Student (Y/N):   _                                                      |
+| Driver License State: ____                                                   |
+| Driver License No:    _______________                                        |
+| Social Security No:   ___________                                            |
+*------------------------------------------------------------------------------*
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+301     Begin
+        If FUNCTION = "ADD" Then
+            Begin
+            CAPDRIVER:POLICY_NO = G_POLICY_NO
+            CAPDRIVER:POL_YEAR = G_YEAR
+            CAPDRIVER:END_SEQUENCE = G_END_SEQUENCE
+            End
+        End
+        CAPDRIVER:POLICY_NO/displayonly                       Mandatory;
+302     CAPDRIVER:POL_YEAR/displayonly ;
+303     CAPDRIVER:END_SEQUENCE/displayonly ;
+401     Begin
+        If FUNCTION = "ADD" Then
+            Do SUBCODE
+        End
+        CAPDRIVER:NAME                          Mandatory;
+601     Begin
+        If FUNCTION = "ADD" Then
+            CAPDRIVER:SEX = "M"
+        End
+        CAPDRIVER:SEX/values="M,F"/default ;
+602     Begin
+        If FUNCTION = "ADD" Then
+            CAPDRIVER:MARITAL_STATUS = "S"
+        End
+        CAPDRIVER:MARITAL_STATUS/values="S,M"/default ;
+901     CAPDRIVER:RELATION_TO_INSURED;
+1001    CAPDRIVER:BIRTH_DATE;
+1101    CAPDRIVER:ACCIDENT_VIOLATION/checkbox/values="N,Y";
+1201    CAPDRIVER:YEARS_LICENSED;
+1301    CAPDRIVER:GOOD_STUDENT/checkbox/values="N,Y";
+1401    Begin
+        If FUNCTION = "ADD" Then
+            CAPDRIVER:STR_STATE = SFSDEFAULT:STR_STATE
+        End
+        CAPDRIVER:STR_STATE/default/mask="XXXX" ;
+1501    CAPDRIVER:LICENSE_NO;
+1601    CAPDRIVER:SOCIAL_SECURITY;
+
+}
+
+Procedure Definition
+
+Procedure SUBCODE
+Begin
+Access CAPDRIVER_ALIAS, Set CAPDRIVER_ALIAS:POLICY_NO = CAPDRIVER:POLICY_NO, Generic
+
+Repeat Begin
+    Exit If CAPDRIVER_ALIAS:POLICY_NO <> CAPDRIVER:POLICY_NO
+
+    L_SUB_CODE = CAPDRIVER_ALIAS:SUB_CODE
+
+    Next CAPDRIVER_ALIAS
+    End
+
+CAPDRIVER:SUB_CODE = L_SUB_CODE + 10
+End
+
+End

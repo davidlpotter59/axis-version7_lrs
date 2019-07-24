@@ -1,0 +1,80 @@
+%%
+Screen
+        Name = "lrsmt01f" ;
+        Type = "Detail" ;
+        Padcharacter = Space ;
+        Highlite = Underscore ;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Drivers - Ver 7.00     %m" ;
+        Domain = "LRSDRIVER" ;
+--        resizeable = yes ;
+        iconline = 0 ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Access LRSDRIVER,
+           Set LRSDRIVER:COMPANY_ID = G_COMPANY_ID ,
+               LRSDRIVER:CLAIM_NO = G_CLAIM_NO ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+Access Validation
+If LRSDRIVER:COMPANY_ID <> G_COMPANY_ID Or
+   LRSDRIVER:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000 ;
+
+screen at 2,1 to 9,80
+{
+%%
+                                                        _______________
+*------------------------------------------------------------------------------*
+| Company Id:   __________  __________________________________________________ |
+| Claim Number: ___________                                                    |
+*------------------------------------------------------------------------------*
+| Name:         __________________________________________________             |
+*------------------------------------------------------------------------------*
+
+
+%%
+Fields
+101     FUNCTION/noecho/showasguidetext;
+301     LRSDRIVER:COMPANY_ID                    Mandatory
+        Include "companyhlp.inc"
+302     SFSCOMPANY:NAME[1];
+401     LRSDRIVER:CLAIM_NO                      Mandatory;
+601     Begin
+        Access SFPCURRENT, Set SFPCURRENT:POLICY_NO  = LRSDRIVER:POLICY_NO, Generic
+
+        Access CAPDRIVER, Set CAPDRIVER:POLICY_NO    = LRSDRIVER:POLICY_NO,
+                              CAPDRIVER:POL_YEAR     = LRSDRIVER:POL_YEAR,
+                              CAPDRIVER:END_SEQUENCE = SFPCURRENT:END_SEQUENCE, Generic
+        End
+        LRSDRIVER:NAME                          Mandatory
+
+        Activehelp CAPDRIVER:NAME ;
+
+} -- end of screen panel
+
+End

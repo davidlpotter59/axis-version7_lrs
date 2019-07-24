@@ -1,0 +1,292 @@
+%%
+Screen
+        Name = "LRSMT02a" ;
+        Type = "Multiline" ;
+        Repeat LINE_ITEMS, 11 Times ;
+        Padcharacter = Space ;
+        Highlight = Underscore ;
+        Screensize ="dynamic";
+        Windowtitle = "%a,     %s Loss Detail Reinsurance - Ver 7.00     %m";
+        Domain = "LRSDETAIL" ;
+--      resizeable = yes ;
+        iconline = 0 ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ;
+
+        Global String G_COMPANY_ID[10] ;
+
+        Local Signed Ascii Number L_TOTAL_RESV[11]/dec=0 ,
+                                  L_TOTAL_PAID[10]/dec=2 ,
+                                  L_TOTAL_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_ALAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_CEDED_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_CEDED_ALAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_ULAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_ULAE_PAID[10]/dec=2 ,
+                                  L_TOTAL_NET_ALAE_RESV[11]/dec=0 ,
+                                  L_TOTAL_NET_ALAE_PAID[10]/dec=2 ,
+                                  L_ULAE_RESV[11]/dec=0 ,
+                                  L_ULAE_PAID[10]/dec=2 ,
+                                  L_ALAE_RESV[11]/dec=0 ,
+                                  L_ALAE_PAID[10]/dec=2 ;
+
+        Local String L_STATUS[9] ;
+
+        include "scipsprint.var"
+
+        Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID  = G_COMPANY_ID ,
+                              LRSDETAIL:CLAIM_NO    = G_CLAIM_NO ;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7.inc"
+
+}
+
+screen entry
+disable(add_fn)
+disable(delete_fn)
+disable(change_fn)
+disable(search_fn)
+
+Access Validation
+Skip when LRSDETAIL:TRANS_CODE < 70 or
+          lrsdetail:trans_code > 90
+
+If LRSDETAIL:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000
+
+screen at 2,1 to 29, 128
+{
+%%
+                                                        _______________
+*-----------------------------------------------------------------------------------------------------------------------------*
+| Company:   __________   _____________________________________________________                                               |
+| Claim No:  ___________  _____________________________________________________                                               |
+| Agent No:  ____         _____________________________________________________                                               |
+| Reported:  __________   Policy No: _________                                                                                |
+| Loss Date: __________   Status:    _______         Status Date: __________                                                  |
+| Claimant:  __________________________________________________                                                               |
+*-----------------------------------------------------------------------------------------------------------------------------*
+|   Trans              Cause        T    Check       Loss        Loss        ULAE        ULAE       ALAE        ALAE          |
+|   Date        LOB    Loss  Vendor C      No        Resv        Paid        Resv        Paid       Resv        Paid          |
+| __________ ____ ___ ____ ___ _____ __ __________ ___________ ____________ ___________ ____________ ___________ ____________ |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+|                                                                                                                             |
+*-----------------------------------------------------------------------------------------------------------------------------*
+|                                     Ceded:    ___________ ____________ ___________ ____________ ___________ ____________    |
+|                                     Direct:   ___________ ____________ ___________ ____________ ___________ ____________    |
+|                                     Net:      ___________ ____________ ___________ ____________ ___________ ____________    |
+*-----------------------------------------------------------------------------------------------------------------------------*
+
+
+%%
+
+components
+
+Fields
+        FUNCTION/noecho/showasguidetext ;
+0301    Begin
+            Do TOTALS
+        End
+        LRSDETAIL:COMPANY_ID/displayonly ;
+0302    SFSCOMPANY:NAME[1] ;
+0401    LRSDETAIL:CLAIM_NO/displayonly ;
+0402    LRSSETUP:NAME[1]/displayonly ;
+0501    LRSSETUP:AGENT_NO/displayonly ;
+0502    SFSAGENT:NAME[1]/displayonly ;
+0601    LRSSETUP:REPORTED_DATE/displayonly ;
+0602    LRSSETUP:POLICY_NO/displayonly ;
+0701    LRSSETUP:LOSS_DATE/displayonly ;
+0702    Begin
+        Switch(LRSSETUP:STATUS)
+          Case "O" : L_STATUS = "OPEN"
+          Case "C" : L_STATUS = "CLOSED"
+          Case "R" : L_STATUS = "RE-OPENED"
+          End
+        End
+        L_STATUS/displayonly ;
+0703    LRSSETUP:STATUS_DATE/displayonly/mask="MM/DD/YYYY" ;
+0801    LRSSETUP:CLAIMANT/displayonly ;
+
+1201    LRSDETAIL:TRANS_DATE/displayonly         tagged LINE_ITEMS ;
+1202    LRSDETAIL:LINE_OF_BUSINESS/displayonly   tagged LINE_ITEMS;
+1203    LRSDETAIL:LOB_SUBLINE/displayonly        tagged LINE_ITEMS;
+1204    LRSDETAIL:CAUSE_OF_LOSS/displayonly      tagged LINE_ITEMS;
+1205    LRSDETAIL:CAUSE_LOSS_SUBLINE/displayonly tagged LINE_ITEMS;
+1206    LRSDETAIL:VENDOR_NO/displayonly          tagged LINE_ITEMS;
+1207    LRSDETAIL:TRANS_CODE/displayonly         tagged LINE_ITEMS;
+1208    LRSCHECK:CHECK_NO_STRING/displayonly     tagged LINE_ITEMS;
+1209    Begin
+        If LRSDETAIL:ULAE = "Y" Then
+            Begin
+            L_ULAE_RESV = LRSDETAIL:LAE_RESV
+            L_ULAE_PAID = LRSDETAIL:LAE_PAID
+            End
+        Else
+            Begin
+            L_ULAE_RESV = 0
+            L_ULAE_PAID = 0
+            End
+        If LRSDETAIL:ALAE = "Y" Then
+            Begin
+            L_ALAE_RESV = LRSDETAIL:LAE_RESV
+            L_ALAE_PAID = LRSDETAIL:LAE_PAID
+            End
+        Else
+            Begin
+            L_ALAE_RESV = 0
+            L_ALAE_PAID = 0
+            End
+        End
+        LRSDETAIL:LOSS_RESV/displayonly          tagged LINE_ITEMS;
+1210    LRSDETAIL:LOSS_PAID/displayonly          tagged LINE_ITEMS;
+1211    L_ULAE_RESV/displayonly                  tagged LINE_ITEMS;
+1212    L_ULAE_PAID/displayonly                  tagged LINE_ITEMS;
+1213    L_ALAE_RESV/displayonly                  tagged LINE_ITEMS;
+1214    L_ALAE_PAID/displayonly                  tagged LINE_ITEMS;
+
+2401    L_TOTAL_CEDED_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2402    L_TOTAL_CEDED_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2403    L_TOTAL_CEDED_ULAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2404    L_TOTAL_CEDED_ULAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2405    L_TOTAL_CEDED_ALAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2406    L_TOTAL_CEDED_ALAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+
+2501    L_TOTAL_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2502    L_TOTAL_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2503    L_TOTAL_ULAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2504    L_TOTAL_ULAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2505    L_TOTAL_ALAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2506    L_TOTAL_ALAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+
+2601    L_TOTAL_NET_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2602    L_TOTAL_NET_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2603    L_TOTAL_NET_ULAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2604    L_TOTAL_NET_ULAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2605    L_TOTAL_NET_ALAE_RESV/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+2606    L_TOTAL_NET_ALAE_PAID/displayonly/mask="Z,ZZZ,ZZ9.99-" ;
+
+} -- end of screen panel
+
+Procedure Definition
+
+procedure totals
+begin
+access lrsdetail_alias, set lrsdetail_alias:company_id = lrsdetail:company_id,
+                            lrsdetail_alias:claim_no   = lrsdetail:claim_no, generic
+
+l_total_resv            = 0
+l_total_paid            = 0
+l_total_ulae_resv       = 0
+l_total_ulae_paid       = 0
+l_total_alae_resv       = 0
+l_total_alae_paid       = 0
+l_total_ceded_resv      = 0
+l_total_ceded_paid      = 0
+l_total_ceded_ulae_resv = 0
+l_total_ceded_ulae_paid = 0
+l_total_ceded_alae_resv = 0
+l_total_ceded_alae_paid = 0
+l_total_net_resv        = 0
+l_total_net_paid        = 0
+l_total_net_ulae_resv   = 0
+l_total_net_ulae_paid   = 0
+l_total_net_alae_resv   = 0
+l_total_net_alae_paid   = 0
+
+while lrsdetail_alias:company_id = lrsdetail:company_id and
+      lrsdetail_alias:claim_no   = lrsdetail:claim_no
+        begin
+        if lrsdetail_alias:trans_code < 30 or
+           lrsdetail_alias:trans_code > 89 then
+            begin
+            l_total_resv = l_total_resv + lrsdetail_alias:loss_resv
+            l_total_paid = l_total_paid + lrsdetail_alias:loss_paid
+            if lrsdetail_alias:ulae = "Y" then
+                begin
+                l_total_ulae_resv = l_total_ulae_resv + lrsdetail_alias:lae_resv
+                l_total_ulae_paid = l_total_ulae_paid + lrsdetail_alias:lae_paid
+                end
+            if lrsdetail_alias:alae = "Y" then
+                begin
+                l_total_alae_resv = l_total_alae_resv + lrsdetail_alias:lae_resv
+                l_total_alae_paid = l_total_alae_paid + lrsdetail_alias:lae_paid
+                end
+            end
+
+        if lrsdetail_alias:trans_code > 69 and
+           lrsdetail_alias:trans_code < 90 then
+            begin
+            l_total_ceded_resv = l_total_ceded_resv + lrsdetail_alias:loss_resv
+            l_total_ceded_paid = l_total_ceded_paid + lrsdetail_alias:loss_paid
+            if lrsdetail_alias:ulae = "Y" then
+                begin
+                l_total_ceded_ulae_resv = l_total_ceded_ulae_resv + lrsdetail_alias:lae_resv
+                l_total_ceded_ulae_paid = l_total_ceded_ulae_paid + lrsdetail_alias:lae_paid
+                end
+            if lrsdetail_alias:alae = "Y" then
+                begin
+                l_total_ceded_alae_resv = l_total_ceded_alae_resv + lrsdetail_alias:lae_resv
+                l_total_ceded_alae_paid = l_total_ceded_alae_paid + lrsdetail_alias:lae_paid
+                end
+            end
+
+        l_total_net_resv      = l_total_resv      + l_total_ceded_resv
+        l_total_net_paid      = l_total_paid      + l_total_ceded_paid
+        l_total_net_ulae_resv = l_total_ulae_resv + l_total_ceded_ulae_resv
+        l_total_net_ulae_paid = l_total_ulae_paid + l_total_ceded_ulae_paid
+        l_total_net_alae_resv = l_total_alae_resv + l_total_ceded_alae_resv
+        l_total_net_alae_paid = l_total_alae_paid + l_total_ceded_alae_paid
+
+        next lrsdetail_alias
+        end
+
+end
+
+Procedure SCIPS_MACRO
+Begin
+I_SCIPS_SELECT = "Y"
+
+If I_SCIPS_SELECT = "Y" Then
+    Begin
+    I_SCIPS_PARAM_NAME = Lowercase(Trun(PROGRAMID)) + Trun(Str(PID)) + ".par"
+    Writefile(I_SCIPS_PARAM_NAME,"%n<nl>",LRSDETAIL:CLAIM_NO)
+    Writefile(I_SCIPS_PARAM_NAME,"%n<nl>",LRSDETAIL:SUB_CODE)
+    End
+
+Include "lrsstatusprt.pro"
+
+End

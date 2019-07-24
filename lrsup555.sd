@@ -1,0 +1,996 @@
+%%
+Program
+        Name         = "lrsup555" ;
+        Type         = "File" ;
+        Domain       = "lrssetup" ;
+        Padcharacter = Space ;
+
+-- create lrsaplus.txt
+--
+-- file is used to submit claim information to APLUS
+--
+-- commandline csbatch lrsup555 MMDDYYYYMMDDYYYYCU (CU - company to use)
+-- first date is the beginning of the month
+-- second date is the last day of the same month as the beginning/first date
+
+-- company to use
+-- 01 - Farmers of Salem
+-- 02 - Farmers of Flemington (ID # 16446)
+-- this all has to be table driven and not hard coded but these are the only 2 clients using this
+-- at this time (DLP)
+
+        Local Unsigned Ascii number L_MASTER_COUNTER[7],
+                                    L_pos[20],
+                                    l_preload[1],
+                                    L_date[5],
+                                    l_date_years[5],
+                                    L_COUNTER[7];
+
+
+        Local String L_COMPANY_ID[10],
+                     l_company_to_use[2];
+
+        RWDate   l_valid_date,
+                 L_starting_date,
+                 L_ending_date,
+                 l_status_date,
+                 l_loss_date ;
+
+
+/* variables used for loss types, policy types and status */
+
+        Local Unsigned Ascii number l_account[12],
+                                    l_claim ,
+                                    l_policy_no[16];
+
+                             String l_case_file[18],
+                                    l_claim_no,
+                                    l_policy_type[4],
+                                    l_loss_type[11],
+                                    l_status[1],
+                                    l_am_best_number[6],
+                                    l_dba_name[40],
+                                    l_status_flag[1];
+
+/* Totals for Claim Ammount */
+
+
+          Local Signed Ascii number l_claim_amount[11]/dec=0,
+                                    l_total_paid[11]/dec=0,
+                                    l_total_resv[11]/dec=0,
+                                    l_total_ceded_resv[11]/dec=0,
+                                    l_total_ceded_paid[11]/dec=0,
+                                    L_total_net_paid[11]/dec=0,
+                                    L_policy[16],
+                                    l_ulae_resv[11]/dec=0,
+                                    l_alea_resv[11]/dec=0,
+                                    l_total_claim[11]/dec=0;
+
+
+/* Name and Address Place Holders */
+/* Insured variables */
+                             String l_last_name[24],
+                                    l_first_name[12],
+                                    l_middle_initial[1],
+                                    L_business_name[40],
+                                    L_insured_city[20],
+                                    l_insured_state[2],
+                                    l_ending[20],
+                                    l_identifier[1],
+                                    l_insured_street_type[3],
+                                    l_insured_street_name[20],
+                                    l_insured_street_number[7],
+
+                                    l_insured_zipcode_ext[4],
+                                    l_insured_zipcode[5];
+
+/*Loss address variables*/
+                             String l_loss_street_type[3],
+                                    l_loss_street_name[20],
+                                    l_loss_city[30],
+                                    l_loss_state[2],
+                                    l_loss_zipcode[5],
+                                    l_loss_zipcode_ext[4],
+                                    l_loss_street_number[7];
+/* various key place holders */
+                             String L_SFS[3]="SFS",
+
+                                    L_ENTER[1];
+/*creating output file */
+                             String l_lrsaplus_file[12]="lrsaplus.txt";
+                             Unsigned Ascii Number l_end_string[4]=0/decimals=0;
+                             Unsigned Ascii Number l_pos_sub[5]=0/decimals=0;
+                             String l_lrs_done[7]="lrsdone";
+                             String l_lrsaplus_log[12]="lrsaplus.out";
+
+
+/* reverse name include file */
+   Include "sfsrevname.var"
+
+
+Initialisation
+-- removed creation 08/16/2006 - was creating issues
+-- create file outside in the shell script
+
+/* create new lrsaplus file */
+l_starting_date = date(commandline[1,8])
+l_ending_date = date(commandline[9,16])
+l_company_to_use = commandline[17,18]
+
+switch(l_company_to_use)
+  case "01"  : l_account = 003376 -- FOS
+  case "02"  : l_account = 16446 -- FICOF
+  default    : l_account = 99999
+end
+
+Write ("<014>")
+Write ("%c%s",01001,"Processing LRSUP555 - Please Wait ......")
+
+Access SFSDEFAULT, Set SFSDEFAULT:SFS_CODE = L_SFS
+Access SFSCOMPANY, Set SFSCOMPANY:COMPANY_ID = SFSDEFAULT:COMPANY_ID
+
+If sfscompany:debug_mode one of 1 then
+  begin
+    Proc ("lrsaplus.mk")
+  end
+else
+  Begin
+    Proc ("lrsaplus.mk")/noconsole
+  end
+
+Deletefile(l_lrsaplus_log)
+Writefile(l_lrsaplus_log,"%s%s","Log file Created on :",str(TODAYSDATE)+" "+Str(SYSTEMTIME)+"<NL>")
+
+Update
+   l_valid_date = DATEADD(Todaysdate,0,-5)
+   L_COUNTER = L_COUNTER + 1
+   l_status_date = lrssetup:status_date
+   l_loss_date   = lrssetup:loss_date
+
+-- Initial Set up --
+
+   access lrssetup_alias,
+      Set lrssetup_alias:company_id = lrssetup:company_id,
+          lrssetup_alias:claim_no   = lrssetup:claim_no, generic
+
+   while lrssetup_alias:company_id = lrssetup:company_id and
+         lrssetup_alias:claim_no   = lrssetup:claim_no
+     {
+       IF lrssetup_alias:loss_date >= l_valid_date then
+         {
+           if  lrssetup_alias:status_date >= l_starting_date and
+               lrssetup_alias:status_date <= l_ending_date and
+               lrssetup_alias:status  one of "O", "R" , "C" then
+             {
+               l_loss_date = lrssetup:loss_date
+               L_Policy_no = lrssetup:policy_no
+               L_CASE_FILE = str(lrssetup:claim_no)
+               Do access_first_procedure_to_access
+             }
+         }
+      next LRSSETUP_ALIAS
+     }
+
+ If L_COUNTER Mod 100 = 0 Then
+    begin
+      Write ("%c%s%n",05001,"Counter = ",L_counter)
+    end
+
+Screen Exit
+
+--do Write_lrsaplus_field_names
+do Write_lrsaplus
+do Write_lrsdone
+do Write_lrsaplus_log
+
+Write ("%c%s%n",18001,"Number of Records on File .........",L_COUNTER)
+
+Write ("<NL><NL>")
+
+Procedure Definition
+
+Procedure access_first_procedure_to_access
+Begin
+  write ("%c%s",15001,"Updating ")
+  do access_sfpmaster
+  do access_sfpname
+  do access_insured_address
+  do access_sfplocation
+  do totals
+  do access_policy_types
+  do access_loss_types
+  do access_status
+  do access_lrsaplus
+End
+
+procedure access_sfpmaster
+begin
+  /* clean up */
+  l_identifier        = ""
+
+  Access SFPMASTER,
+     Set SFPMASTER:POLICY_NO    = Lrssetup:policy_no,
+         SFPMASTER:POL_YEAR     = LRSSETUP:POL_YEAR,
+         SFPMASTER:END_SEQUENCE = LRSSETUP:END_SEQUENCE, GENERIC
+
+
+   -- Processing Business/ Individual Names --
+   switch (SFPMASTER:FORM_OF_BUSINESS )
+     case " "                           : l_identifier = "I"
+     case "I", "C", "L", "T" , "P"      : l_identifier = "B"
+   end
+end
+
+/*Access insured information*/
+Procedure Access_sfpname
+
+Begin
+  /* clean up */
+
+  l_last_name             = ""
+  l_first_name            = ""
+  l_middle_initial        = ""
+  l_business_name         = ""
+  I_first_name            = ""
+  I_last_name             = ""
+  I_name                  = ""
+
+  Access SFPNAME,
+     Set SFPNAME:POLICY_NO       = lrssetup:policy_no, generic
+
+  if (l_identifier = "I") then
+    begin
+      I_NAME = sfpname:NAME[1]
+      if (I_name = "") then
+        begin
+          lrssetup:name[1] = I_NAME
+        end
+
+
+  /*if only one name appears without the "=" */
+      l_pos = pos("=",I_NAME)
+
+      if (l_pos = 0) then
+         begin
+           l_business_name = I_name
+           l_first_name = ""
+          --   l_last_name = I_Name
+          l_identifier = "B"
+         end
+       else
+        Begin
+          --Include"sfsrevname.pro"
+          L_first_name = Trun(I_NAME[(Pos("=",I_NAME)+1),Len(I_NAME)])
+          l_last_name  = Trun(I_NAME[1,(Pos("=",I_NAME)-1)])
+        end
+
+  /* checks for a middle initial */
+      l_pos = pos(" ",l_first_name)
+      if (l_pos <> 0) and
+         (l_pos <> 1) then
+         begin
+          L_middle_initial = trun(l_first_name[(pos(" ",l_first_name)+1),len(l_first_name)])
+          L_first_name     = trun(l_first_NAME[1,(pos(" ",L_first_NAME)-1)])
+
+        end
+
+ /* checks for a Jr or SR */
+      l_pos = pos(" ",l_last_name)
+      if (l_pos <> 0) then
+        begin
+          L_ending = trun(l_last_name[(pos(" ",l_last_name)+1),len(l_last_name)])
+          if (l_ending one of "JR", "SR") then
+            begin
+              L_last_name = trun(l_last_NAME[1,(pos(" ",L_last_NAME)-1)])
+            end
+         end
+
+      end -- end if loop
+
+     else
+       begin
+         if (sfpname:name[1] = "") then
+           begin
+             I_NAME = lrssetup:name[1]
+
+           end
+
+         I_NAME = sfpname:NAME[1]
+
+/* checks for name with a deliminator  */
+           l_pos = pos(sfscompany:reverse_name_deliminator,I_NAME)
+                if (l_pos = 0) then
+                  begin
+                    l_business_name = I_name
+                  end
+                else   -- if there is a first name and last name
+                  begin
+                    Include"sfsrevname.pro"
+                    L_business_name = I_REV_NAME
+                  end
+       end  -- end of else
+end
+/*Access insured information*/
+Procedure Access_insured_address
+
+Begin
+  /* clean up */
+
+  l_insured_street_name   = ""
+  l_insured_street_type   = ""
+  L_insured_street_number = ""
+  l_insured_city          = ""
+  l_insured_state         = ""
+  l_insured_zipcode       = ""
+  l_insured_zipcode_ext   = ""
+
+  Access SFPNAME,
+     Set SFPNAME:POLICY_NO       = lrssetup:policy_no, generic
+
+
+  if sfpname:address[1] = " " then
+    begin
+      Access SFPLOCATION,
+         Set SFPLOCATION:POLICY_NO    = LRSSETUP:POLICY_NO,
+             SFPLOCATION:POL_YEAR     = LRSSETUP:POL_YEAR,
+             SFPLOCATION:END_SEQUENCE = LRSSETUP:END_SEQUENCE, generic
+      L_insured_street_type   = sfplocation:st_type
+      L_INSURED_STREET_Number = str(sfplocation:st_number)
+      L_INSURED_STREET_NAME   = (sfplocation:st_direction+" "+sfplocation:street)
+      L_INSURED_CITY          = SFPLOCATION:CITY
+      L_INSURED_STATE         = SFPLOCATION:STR_STATE
+      L_Insured_ZIPCODE       = SFPLOCATION:STR_ZIPCODE[1,5]
+      L_insured_zipcode_ext   = SFPLOCATION:str_zipcode[6,9]
+    end
+  else
+    begin
+      L_insured_street_name = sfpname:address[1]
+      L_INSURED_CITY        = SFPNAME:CITY
+      L_INSURED_STATE       = SFPNAME:STR_STATE
+      L_Insured_ZIPCODE     = SFPNAME:STR_ZIPCODE[1,5]
+      L_insured_zipcode_ext = sfpname:str_zipcode[6,9]
+    end
+
+  if (l_insured_street_name = "") then
+    Begin
+      Access LRSCMNT,
+         Set LRSCMNT:company_id = lrssetup:company_id,
+             LRSCMNT:claim_no =   lrssetup:claim_No, generic
+
+      l_insured_street_name = LRSCMNT:ADDRESS[1]
+      l_insured_city = lrscmnt:city
+      l_insured_state = lrscmnt:str_state
+      l_insured_zipcode = lrscmnt:str_zipcode[1,5]
+      l_insured_zipcode_ext = lrscmnt:str_zipcode[6,9]
+    end
+
+
+End
+
+
+Procedure Access_sfplocation
+
+begin
+  /* clean up */
+
+  L_loss_street_name   = ""
+  l_loss_street_type   = ""
+  l_loss_street_number = ""
+  l_loss_city          = ""
+  l_loss_state         = ""
+  l_loss_zipcode       = ""
+  l_loss_zipcode_ext   = ""
+
+
+  -- PROCESSING LOSS ADDRESS --
+
+  Access SFPLOCATION,
+     Set SFPLOCATION:POLICY_NO    = LRSSETUP:POLICY_NO,
+         SFPLOCATION:POL_YEAR     = LRSSETUP:POL_YEAR,
+         SFPLOCATION:END_SEQUENCE = LRSSETUP:END_SEQUENCE, GENERIC
+
+  if sfplocation:street    = "" then
+     begin
+       Access SFPNAME,
+         Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO, GENERIC
+       l_loss_street_name = sfpname:address[1]
+     end
+  else
+     begin
+       l_loss_street_type    = sfplocation:st_type
+       l_loss_street_number  = str(sfplocation:st_number)
+       l_loss_street_name    = (sfplocation:st_direction+" "+sfplocation:street)
+     end
+
+  if (sfplocation:st_type      = "") and
+     (sfplocation:st_number    =  0) and
+     (sfplocation:st_direction = "") and
+     (sfplocation:street       = "") then
+     begin
+       l_loss_street_name = sfplocation:address[1]
+     end
+
+
+  if (sfplocation:address[1] = "") then
+    Begin
+      Access SFPNAME,
+         Set SFPNAME:POLICY_NO    = LRSSETUP:POLICY_NO, GENERIC
+         l_loss_street_name = sfpname:address[1]
+    end
+
+  if (sfpname:address[1] = "") then
+    begin
+      Access LRSCMNT,
+         Set LRSCMNT:company_id = lrssetup:company_id,
+             LRSCMNT:claim_no =   lrssetup:claim_No, generic
+      l_loss_street_name = LRSCMNT:ADDRESS[1]
+    end
+
+
+  if (sfplocation:city = "") and
+     (sfplocation:str_state = "") and
+     (sfplocation:str_zipcode = "") then
+     begin
+       l_loss_city = sfpname:city
+       l_loss_state = sfpname:str_state
+       l_loss_zipcode = sfpname:str_zipcode[1,5]
+       l_loss_zipcode_ext = sfpname:str_zipcode[6,9]
+       if (sfpname:city = "") and
+          (sfpname:str_state = "") and
+          (sfpname:str_zipcode = "") then
+          begin
+            l_loss_city = lrscmnt:city
+            l_loss_state = lrscmnt:str_state
+            l_loss_zipcode = lrscmnt:str_zipcode[1,5]
+            l_loss_zipcode_ext = lrscmnt:str_zipcode[6,9]
+          end
+     end
+  else
+     begin
+       l_loss_city = sfplocation:city
+       l_loss_state = sfplocation:str_state
+       l_loss_zipcode = sfplocation:str_zipcode[1,5]
+       l_loss_zipcode_ext = sfplocation:str_zipcode[6,9]
+     end
+
+
+end
+
+/*Current payment on claim information from Today's date as the ending date */
+Procedure TOTALS
+
+Begin
+  Access LRSDETAIL, Set LRSDETAIL:COMPANY_ID = LRSSETUP:COMPANY_ID,
+                        LRSDETAIL:CLAIM_NO   = LRSSETUP:claim_no, Generic
+  L_TOTAL_Paid            = 0
+  L_TOTAL_RESV            = 0
+  L_TOTAL_CEDED_RESV      = 0
+  L_TOTAL_CEDED_Paid      = 0
+  L_TOTAL_NET_Paid        = 0
+  l_claim_amount          = 0
+  l_total_claim           = 0
+
+  While LRSDETAIL:COMPANY_ID = LRSSETUP:COMPANY_ID And
+        LRSDETAIL:CLAIM_NO   = LRSSETUP:claim_no
+    Begin
+      If (lrsdetail:trans_date => L_starting_date)  and
+         (lrsdetail:trans_date =< L_ending_Date)    Then
+        {
+          If LRSDETAIL:TRANS_CODE < 30 or
+             LRSDETAIL:trans_code > 89 Then
+              Begin
+              --L_total_resv = L_total_resv + lrsdetail:loss_resv
+              L_TOTAL_Paid = L_TOTAL_Paid + LRSDETAIL:LOSS_PAID
+              end
+          If LRSDETAIL:TRANS_CODE > 69 and
+             LRSDETAIL:trans_code < 90 Then
+              Begin
+              --L_total_Ceded_resv = L_total_Ceded_resv + lrsdetail:loss_resv
+              L_TOTAL_CEDED_Paid = L_TOTAL_CEDED_Paid + LRSDETAIL:LOSS_PAID
+              end
+
+          --l_total_claim = l_total_resv + l_total_ceded_resv
+          L_TOTAL_NET_Paid = L_TOTAL_Paid + L_TOTAL_CEDED_Paid
+
+          l_claim_amount = l_total_net_paid
+        }
+      If L_claim_amount  > 0 Then
+        {
+          l_claim_amount = l_claim_amount
+        }
+      else
+        {
+          L_claim_amount = 0
+        }
+
+      Next LRSDETAIL
+    end --end of while loop
+    l_status_flag = "A"
+
+End
+
+/* Produces a Policy Type using Line of Business*/
+PROCEDURE ACCESS_POLICY_TYPES
+
+BEGIN
+  /* clean up */
+  l_policy_type = ""
+  SWITCH(LRSSETUP:LINE_OF_BUSINESS)
+     CASE 1, 31                   : begin
+                                    if (lrssetup:lob_subline = "30") then
+                                       begin
+                                         l_policy_type = "F" -- FIRE
+                                       END
+                                    ELSE if (lrssetup:lob_subline one of "69", "70", "71", "72", "73") then
+                                       BEGIN
+                                         L_POLICY_TYPE = "J"
+                                       END
+                                     ELSE
+                                       BEGIN
+                                         L_POLICY_TYPE = "W"    -- Apartment, Commercial Lines
+                                       END
+                                     END
+     CASE 2, 32                   : L_POLICY_TYPE = "GL"   -- GENERAL LIABILITY
+     CASE 3, 33                   : L_POLICY_TYPE = "MH"   -- Mobile Home
+     CASE 4, 14, 24, 34, 44       : begin
+                                    if (lrssetup:lob_subline one of "69", "70", "71", "72", "73", "74") then
+                                       begin
+                                         l_policy_type = "J" -- Umbrella
+                                       end
+                                     else
+                                       begin
+                                         L_POLICY_TYPE = "HO"   -- Homeowners
+                                       end
+                                     end
+     CASE 5, 35                   : L_POLICY_TYPE = "BOP"  -- Business Owners
+     CASE 6, 36                   : L_POLICY_TYPE = "E"    -- Contractors
+     CASE 7, 37                   : L_POLICY_TYPE = "J"    -- Umbrella Policy
+     CASE 8, 38                   : begin
+                                    IF (LRSSETUP:LOB_SUBLINE = "10") then
+                                       BEGIN
+                                         l_POLICY_TYPE = "F"
+                                       END
+                                    ELSE
+                                    IF (LRSSETUP:LOB_SUBLINE ONE OF "92", "93" , "94") THEN
+                                       BEGIN
+                                         l_POLICY_TYPE = "FARM"
+                                       END
+                                    ELSE
+                                       BEGIN
+                                         l_POLICY_TYPE = "CMP"
+                                       END
+                                    END
+
+     CASE 9, 39                   : L_POLICY_TYPE = "WC"   -- Workman's Compensation
+     CASE 10 , 40                 : L_POLICY_TYPE = "FARM" -- Farm
+     CASE 11, 41                  : L_POLICY_TYPE = "W"    -- Apartment, Commercial Lines
+     CASE 12, 13, 42, 43          : L_POLICY_TYPE = "IM"   -- Inlans Marine
+     CASE 15, 16, 45, 46          : BEGIN
+                                    IF (LRSSETUP:LOB_SUBLINE ONE OF "11" , "19") THEN
+                                       BEGIN
+                                         l_POLICY_TYPE = "MP"
+                                       END
+                                    ELSE
+                                    IF (LRSSETUP:LOB_SUBLINE ONE OF "16", "17" , "18", "21" , "22") THEN
+                                       BEGIN
+                                         l_POLICY_TYPE = "PIP"
+                                       END
+                                    ELSE
+                                       BEGIN
+                                         l_POLICY_TYPE = "W"
+                                       END
+                                    END
+     DEFAULT                       :L_POLICY_TYPE = "W"
+   end -- switch end
+
+END
+
+/*Produces Loss Types of Claims */
+PROCEDURE ACCESS_LOSS_TYPES
+
+BEGIN
+  /* clean up */
+  l_loss_type = ""
+  Access sfscause,
+     Set sfscause:company_id       = lrssetup:company_id,
+         sfscause:line_of_business = lrssetup:line_of_business,
+         sfscause:lob_subline      = lrssetup:lob_subline,
+         sfscause:cause_of_loss    = lrssetup:cause_of_loss, generic
+
+  SWITCH (lrssetup:CAUSE_LOSS_SUBLINE)
+
+    CASE "MP",
+         "ME",
+         "MT"          :L_LOSS_TYPE = "MEDICAL"  -- Medical payments
+    CASE "LT"          :L_LOSS_TYPE = "LIGHT"    -- Lightning
+    CASE "FR"          :BEGIN
+                          IF (SFSCAUSE:DESCRIPTION = "SMOKE/FIRE") then
+                            BEGIN
+                              L_LOSS_TYPE = "SMOKE"
+                            END
+                          ELSE
+                            BEGIN
+                              L_LOSS_TYPE = "FIRE" -- Fire
+                            END
+                        END
+    CASE "VM"          :L_LOSS_TYPE = "VMM"       -- Vandalism/Malicious Mischief
+    CASE "AO"          :L_LOSS_TYPE = "OTHER"
+    CASE "OP",
+         "BR"          :L_LOSS_TYPE = "THEFT"     --Theft/Burglary
+    CASE "HL"          :L_LOSS_TYPE = "HAIL"      --Hail
+    CASE "AB"          :L_LOSS_TYPE = "DOG"       --Dog Bite(liability)
+    CASE "SL",
+         "SB"          :L_LOSS_TYPE = "WATER"     --Water Damage
+    CASE "PL",
+         "FZ"          :L_LOSS_TYPE = "FREEZE"    --Freezing Water/ Bursting pipes
+    CASE "CC"          :L_LOSS_TYPE = "CREDIT"    --Credit card
+    CASE "ST"          :L_LOSS_TYPE = "SMOKE"     --Smoke
+    CASE "TN",
+         "WI",
+         "HR"          :L_LOSS_TYPE = "WIND"      --Wind/ including Tornado and Hurricane
+    CASE "CO"          :L_LOSS_TYPE = "WC"        --Workman's Comp
+    CASE "GL",
+         "WT",
+         "EP",
+         "CL"          :L_LOSS_TYPE = "PHYDA"     --Physical Damage (all others)
+    CASE "VH"          :L_LOSS_TYPE = "DAMAG"     --Damage To Property of Others
+    CASE "BM"          :L_LOSS_TYPE = "BOP"       --Business Owners
+    CASE "PI",
+         "WE",
+         "LP",
+         "SM"          :L_LOSS_TYPE = "LIABILITY" --Lioability (All Others)
+    CASE "BI"          :L_LOSS_TYPE = "SLIP"      --Slip/Fall (Liability)
+    CASE "CA"          :BEGIN
+                          SWITCH (SFSCAUSE:DESCRIPTION)
+                            CASE "VANDALISM"   : L_LOSS_TYPE = "VMM"
+                            CASE "THEFT"       : L_LOSS_TYPE = "THEFT"
+                            CASE "FIRE"        : L_LOSS_TYPE = "FIRE"
+                            CASE "MEDICAL PAY" : L_LOSS_TYPE = "MEDICAL"
+                            CASE "WATER"       : L_LOSS_TYPE = "WATER"
+                            CASE "WIND/HAIL"   : L_LOSS_TYPE = "WIND"
+                            DEFAULT            : L_LOSS_TYPE = "PHYDA"
+                          END
+                        END
+    CASE "PD"          :BEGIN
+                          IF (SFSCAUSE:DESCRIPTION = "PROPERTY DAMAGE") THEN
+                             Begin
+                               L_LOSS_TYPE = "DAMAG"
+                             End
+                          ELSE
+                             Begin
+                               l_LOSS_TYPE = "CONTA"
+                             end
+                        end
+    CASE "AP"          :BEGIN
+                          IF (SFSCAUSE:DESCRIPTION = "APPLIANCE") THEN
+                             Begin
+                               L_LOSS_TYPE = "PHYDA"
+                             end
+                          ELSE
+                             Begin
+                               l_LOSS_TYPE = "THEFT"
+                             end
+                        end
+    DEFAULT            :l_LOSS_TYPE = "OTHER"
+  END-- switch end
+END
+
+/*Processes the Claim status */
+PROCEDURE ACCESS_STATUS
+
+BEGIN
+  -- CLAIM STATUS--
+  Switch (lrssetup:status)
+    case "R", "O" :begin
+                     if (lrsdetail:trans_code = 15) then
+                       Begin
+                         l_status = "S"  -- subrogation
+                       end
+                     else
+                       begin
+                         l_status = "O"  -- OPEN
+                       end
+                   end
+    case "C"      :l_status = "C"     -- Closed
+    case "Z"      :L_STATus = "D"     -- Did not meet deductible
+    case "X"      :L_status = "U"     -- Unknown
+  end  -- switch end
+end
+
+Procedure access_lrsaplus
+
+begin
+  L_claim_no = str(lrssetup:claim_no)
+
+  Access lrsaplus,
+     set lrsaplus:company_id       = lrssetup:company_id,
+         lrsaplus:case_file_number = l_claim_no, generic
+
+
+  if lrsaplus:company_id         <>  lrssetup:company_id and
+     lrsaplus:case_file_number   <>  l_claim_no then
+     begin
+       add lrsaplus
+       Begin
+         if (l_case_file <> "0") then
+            begin
+              LRSAPLUS:COMPANY_ID                   = LRSDETAIL:COMPANY_ID
+              LRSAPLUS:IDENTIFIER                   = L_IDENTIFIER
+              LRSAPLUS:BUSINESS_NAME                = L_BUSINESS_NAME/spacefill/raw
+              LRSAPLUS:DBA_NAME                     = ""/spacefill/raw
+              LRSAPLUS:TAX_ID                       = 0000000000
+              LRSAPLUS:LAST_NAME                    = L_LAST_NAME
+              LRSAPLUS:FIRST_NAME                   = L_FIRST_NAME
+              LRSAPLUS:MIDDLE_INITIAL               = L_MIDDLE_INITIAL
+              LRSAPLUS:AKA_LAST_NAME                = ""/spacefill/raw
+              LRSAPLUS:AKA_FIRST_NAME               = ""/spacefill/raw
+              LRSAPLUS:AKA_MIDDLE_INITIAL           = ""/spacefill/raw
+              LRSAPLUS:Insured_ssn                  = 000000000
+              LRSAPLUS:Insured_date_of_birth        = 0000.00.00
+              LRSAPLUS:Insured_gender               = ""/spacefill/raw
+              LRSAPLUS:insured2_LAST_NAME           = ""/spacefill/raw
+              LRSAPLUS:insured2_FIRST_NAME          = ""/spacefill/raw
+              LRSAPLUS:insured2_MIDDiLE_INITIAL     = ""/spacefill/raw
+              LRSAPLUS:insured2_aka_LAST_NAME       = ""/spacefill/raw
+              LRSAPLUS:insured2_aka_FIRST_NAME      = ""/spacefill/raw
+              LRSAPLUS:insured2_aka_MIDDLE_INITIAL  = ""/spacefill/raw
+              LRSAPLUS:insured2_SSN                 = 000000000
+              LRSAPLUS:insured2_date_of_birth       = 0000.00.00
+              LRSAPLUS:insured2_gender              = ""/spacefill/raw
+              LRSAPLUS:LOSS_STREET_NUMBER           = L_LOSS_STREET_NUMBER
+              LRSAPLUS:LOSS_STREET_NAME             = L_LOSS_STREET_NAME
+              LRSAPLUS:LOSS_STREET_TYPE             = L_LOSS_STREET_TYPE
+              LRSAPLUS:LOSS_APARTMENT_NUMBER        = ""/spacefill/raw
+              LRSAPLUS:LOSS_CITY                    = L_LOSS_CITY
+              LRSAPLUS:LOSS_STATE                   = L_LOSS_STATE
+              LRSAPLUS:LOSS_ZIPCODE                 = VAL(L_LOSS_ZIPCODE)
+              LRSAPLUS:LOSS_ZIPCODE_EXT             = VAL(L_LOSS_ZIPCODE_EXT)
+              lrsaplus:Insured_street_number        = l_insured_street_number
+              LRSAPLUS:INSURED_street_name          = L_INSURED_street_name
+              lrsaplus:Insured_street_type          = l_insured_street_type
+              lrsaplus:Insured_apartment_number     = ""/spacefill/raw
+              LRSAPLUS:INSURED_CITY                 = L_INSURED_CITY
+              LRSAPLUS:INSURED_STATE               = L_INSURED_STATE
+              LRSAPLUS:INSURED_ZIPCODE             = VAL(L_INSURED_ZIPCODE)
+              LRSAPLUS:INSURED_ZIPCODE_EXT         = VAL(L_INSURED_ZIPCODE_EXT)
+              lrsaplus:mortgagee                   = ""/spacefill/raw
+              lrsaplus:loan_number                 = ""/spacefill/raw
+              LRSAPLUS:POLICY_TYPE                 = L_POLICY_TYPE
+              LRSAPLUS:POLICY_NUMBER               = str(L_POLICY_NO)
+              LRSAPLUS:ACCOUNT_NUMBER              = l_account
+              LRSAPLUS:DATE_OF_LOSS                = L_LOSS_DATE
+              if (l_claim_amount < 0) then
+                begin
+                  l_claim_amount = 0
+                  lrsaplus:claim_amount = l_claim_amount
+                end
+              else
+                begin
+                  LRSAPLUS:CLAIM_AMOUNT                = L_CLAIM_AMOUNT
+                end
+              LRSAPLUS:CLAIM_TYPE                  = L_LOSS_TYPE
+              LRSAPLUS:CASE_FILE_NUMBER            = L_CASE_FILE/nullfill/raw
+              Lrsaplus:catastrophe_number          = ""/spacefill/raw
+              lrsaplus:ALLEGED_INJURY_CAUSE        = ""/spacefill/raw
+              LRSAPLUS:Claimant_LAST_NAME          = ""/spacefill/raw
+              LRSAPLUS:claimant_FIRST_NAME         = ""/spacefill/raw
+              LRSAPLUS:claimant_MIDDLE_INITIAL     = ""/spacefill/raw
+              LRSAPLUS:claimant_street_number      = ""/spacefill/raw
+              LRSAPLUS:claimant_street_name        = ""/spacefill/raw
+              LRSAPLUS:claimant_street_type        = ""/spacefill/raw
+              LRSAPLUS:claimant_apartment_no       = ""/spacefill/raw
+              LRSAPLUS:claimant_CITY               = ""/spacefill/raw
+              LRSAPLUS:claimant_STATE              = ""/spacefill/raw
+              LRSAPLUS:claimant_ZIPCODE            = 00000
+              LRSAPLUS:claimant_ZIPCODE_EXT        = 0000
+              LRSAPLUS:claimant_SSN                = 000000000
+              LRSAPLUS:claimant_DATE_OF_BIRTH      = 0000.00.00
+              LRSAPLUS:claimant_GENDER             = " "/spacefill/raw
+              lRSAPLUS:FILLER_1                    = ""/SPACEFILL/raw
+              LRSAPLUS:CLAIM_STATUS                = L_STATUS
+              LRSAPLUS:STATUS_UPDATE_FLAG          = L_STATUS_FLAG
+              LRSAPLUS:AM_BEST_NUMBER              = str(l_account,"999999")
+              LRSAPLUS:DOMESTIC_VIOLENCE_INDICATOR = ""/SPACEFILL/raw
+              LRSAPLUS:DOMESTIC_VIOLENCE_STATE_CODE= ""/SPACEFILL/raw
+              LRSAPLUS:FILLER_2                    = ""/SPACEFILL/raw
+            end-- end of if
+       end-- end of add
+     end
+    -- end of outer if
+end
+
+Procedure Write_lrsaplus_field_names
+
+begin
+  Writefile (l_lrsaplus_file,"%s","identifier")
+  Writefile (l_lrsaplus_file,"%s","business name")
+  Writefile (l_lrsaplus_file,"%s","doing business as (DBA)")
+  Writefile (l_lrsaplus_file,"%s","business federal id/tax id")
+  Writefile (l_lrsaplus_file,"%s","last name")
+  Writefile (l_lrsaplus_file,"%s","first name")
+  Writefile (l_lrsaplus_file,"%s","middle initial")
+  Writefile (l_lrsaplus_file,"%s","aka last name")
+  Writefile (l_lrsaplus_file,"%s","aka first name")
+  Writefile (l_lrsaplus_file,"%s","aka middle initial")
+  Writefile (l_lrsaplus_file,"%s","insured ssn")
+  Writefile (l_lrsaplus_file,"%s","insured date of birth")
+  Writefile (l_lrsaplus_file,"%s","insured gender")
+  Writefile (l_lrsaplus_file,"%s","insured2 last name")
+  Writefile (l_lrsaplus_file,"%s","insured2 first name")
+  Writefile (l_lrsaplus_file,"%s","insured2 middle initial")
+  Writefile (l_lrsaplus_file,"%s","insured2 aka last name")
+  Writefile (l_lrsaplus_file,"%s","insured2 aka first name")
+  Writefile (l_lrsaplus_file,"%s","insured2 aka middle initial")
+  Writefile (l_lrsaplus_file,"%s","insured2 ssn")
+  Writefile (l_lrsaplus_file,"%s","insured2 date of birth")
+  Writefile (l_lrsaplus_file,"%s","insured2 gender")
+  Writefile (l_lrsaplus_file,"%s","loss street number")
+  Writefile (l_lrsaplus_file,"%s","loss street name")
+  Writefile (l_lrsaplus_file,"%s","loss street type")
+  Writefile (l_lrsaplus_file,"%s","loss apartment number")
+  Writefile (l_lrsaplus_file,"%s","loss city")
+  Writefile (l_lrsaplus_file,"%s","loss state")
+  Writefile (l_lrsaplus_file,"%s","loss zipcode")
+  Writefile (l_lrsaplus_file,"%s","loss zipcode_ext")
+  Writefile (l_lrsaplus_file,"%s","insured street number")
+  Writefile (l_lrsaplus_file,"%s","insured street name")
+  Writefile (l_lrsaplus_file,"%s","insured street type")
+  Writefile (l_lrsaplus_file,"%s","insured city")
+  Writefile (l_lrsaplus_file,"%s","insured state")
+  Writefile (l_lrsaplus_file,"%s","insured zipcode")
+  Writefile (l_lrsaplus_file,"%s","insured zipcode_ext")
+  Writefile (l_lrsaplus_file,"%s","mortgagee")
+  Writefile (l_lrsaplus_file,"%s","loan number")
+  Writefile (l_lrsaplus_file,"%s","policy type")
+  Writefile (l_lrsaplus_file,"%s","policy number")
+  Writefile (l_lrsaplus_file,"%s","account number")
+  Writefile (l_lrsaplus_file,"%s","date of loss ")
+  Writefile (l_lrsaplus_file,"%s","claim amount")
+  Writefile (l_lrsaplus_file,"%s","claim type")
+  Writefile (l_lrsaplus_file,"%s","case file number")
+  Writefile (l_lrsaplus_file,"%s","catastrophe number")
+  Writefile (l_lrsaplus_file,"%s","alleged injusry/cause of loss")
+  Writefile (l_lrsaplus_file,"%s","claimant last name")
+  Writefile (l_lrsaplus_file,"%s","claimant first name")
+  Writefile (l_lrsaplus_file,"%s","claimant middle initial")
+  Writefile (l_lrsaplus_file,"%s","claimant street number")
+  Writefile (l_lrsaplus_file,"%s","claimant street address")
+  Writefile (l_lrsaplus_file,"%s","claimant street type")
+  Writefile (l_lrsaplus_file,"%s","claimant apartment number")
+  Writefile (l_lrsaplus_file,"%s","claimant city")
+  Writefile (l_lrsaplus_file,"%s","claimant state")
+  Writefile (l_lrsaplus_file,"%s","claimant zipcode")
+  Writefile (l_lrsaplus_file,"%s","claimant zipcode_ext")
+  Writefile (l_lrsaplus_file,"%s","claimant ssn")
+  Writefile (l_lrsaplus_file,"%s","claimant date of birth")
+  Writefile (l_lrsaplus_file,"%s","claimant gender")
+  Writefile (l_lrsaplus_file,"%s","filler/ remarks")
+  Writefile (l_lrsaplus_file,"%s","claim status")
+  Writefile (l_lrsaplus_file,"%s","status update flag")
+  Writefile (l_lrsaplus_file,"%s","am best number")
+  Writefile (l_lrsaplus_file,"%s","domestic violence indicator")
+  Writefile (l_lrsaplus_file,"%s","domestic violence state code")
+  Writefile (l_lrsaplus_file,"%s","filler/ remarks")
+  Writefile (l_lrsaplus_file,"%s","<NL>")
+end
+
+Procedure Write_lrsaplus
+
+begin
+
+  /* DELETE */
+  DELETEFILE(L_LRSAPLUS_FILE)
+
+  /* CREATE FILE */
+  If sfscompany:debug_mode one of 1 then
+  begin
+    Proc ("touch %s",L_lrsaplus_file)
+  end
+  else
+  Begin
+    Proc ("touch %s",L_lrsaplus_file)/noconsole
+  end
+
+  l_company_id = ""
+  L_master_counter = 0
+
+  Access lrsaplus,
+     Set lrsaplus:company_id = l_company_id, approximate
+
+  while lrsaplus:ERRORNUMBER = 0
+    begin
+      l_master_counter = L_master_counter + 1
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:identifier)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:business_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:dba_name)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:tax_id,"999999999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:last_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:first_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:middle_initial)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:aka_last_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:aka_first_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:aka_middle_initial)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured_ssn,"999999999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured_date_of_birth,"99999999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_gender)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_last_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_first_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_middile_initial)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_aka_last_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_aka_first_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_aka_middle_initial)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured2_ssn,"999999999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured2_date_of_birth,"99999999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured2_gender)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_street_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_street_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_street_type)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_apartment_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_city)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loss_state)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:loss_zipcode,"99999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:loss_zipcode_ext,"9999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_street_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_street_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_street_type)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_apartment_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_city)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:insured_state)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured_zipcode,"99999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:insured_zipcode_ext,"9999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:mortgagee)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:loan_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:policy_type)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:policy_number)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:account_number,"999999999999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:date_of_loss,"YYYYMMDD"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:claim_amount,"99999999999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:CLAIM_type)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:case_file_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:catastrophe_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:alleged_injury_cause)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_last_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_first_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_middle_initial)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_street_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_street_name)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_street_type)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_apartment_no)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_city)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_state)
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:claimant_zipcode,"99999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:claimant_zipcode_ext,"9999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:claimant_ssn,"999999999"))
+      Writefile (l_lrsaplus_file,"%s",str(lrsaplus:claimant_date_of_birth,"99999999"))
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claimant_gender)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:filler_1)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:claim_status)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:status_update_flag)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:am_best_number)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:domestic_violence_indicator)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:domestic_violence_state_code)
+      Writefile (l_lrsaplus_file,"%s",lrsaplus:filler_2)
+      Writefile (l_lrsaplus_file,"%s","<NL>")
+    next lrsaplus
+  end    -- end of while loop
+  closefile (l_lrsaplus_file)
+end
+
+Procedure Write_lrsdone
+Begin
+Deletefile(l_lrs_done)
+Writefile(L_lrs_done,"%s","DONE<NL>")
+Closefile(l_lrs_done)
+
+end
+
+Procedure Write_Lrsaplus_log
+Begin
+  Writefile (l_lrsaplus_log,"%s%s","User running update : ",USERNAME+"<NL><NL>")
+  Writefile (l_lrsaplus_log,"%s%s","Number of Records on LRSSETUP File : ",str(l_counter,"999999")+"<NL><NL>")
+  Writefile (l_lrsaplus_log,"%s%s","Number of Records on LRSAPLUS File  : ",str(l_master_counter,"999999")+"<NL><NL>")
+  Writefile (l_lrsaplus_log,"%s%s","Proccessing Complete at : ",str(TODAYSDATE) + " " +str(SYSTEMTIME)+ "<NL>")
+  Closefile (L_lrsaplus_log)
+END
+
+End -- end of program

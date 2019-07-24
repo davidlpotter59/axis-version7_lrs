@@ -1,0 +1,113 @@
+%%
+Program
+        Name = "lrsup304" ;
+        Type = "File" ;
+        Domain = "FLAT" ;
+
+/* batch program to email underwriters of suspense */
+
+        Number COUNTER = 0,
+               ERR = 0 ;
+
+        String L_FILENAME[20],
+               L_COMPANY_ID[10]="" ,
+               l_email[50]="",
+               L_USER_ID[15] ,
+               L_FILENAMEA[20],
+               L_SUBJECT[200];
+
+        Date L_SUSPENSE_DATE[8] ;
+
+Initialisation
+COUNTER = COUNTER + 1
+If COUNTER = 1 Then
+    Begin
+    Write ("<014>")
+    End
+
+proc("cli lrssuswork.mk")/noconsole
+proc("cli lrssuswork1.mk")/noconsole
+proc("cli lrssuswork2.mk")/noconsole
+
+Do EMAIL_UNDERWRITER
+
+Update
+
+Errors
+ERR = ERR + 1
+
+Procedure Definition
+
+Procedure EMAIL_UNDERWRITER
+Begin
+L_FILENAME = "claim.mf"
+L_FILENAMEA = "claim"
+L_SUBJECT = "Claim Suspense List"
+
+L_COMPANY_ID = ""
+Access lrsSUSPENSE, Set lrsSUSPENSE:COMPANY_ID = L_COMPANY_ID, Approximate
+
+while lrsSUSPENSE:COMPANY_ID not one of ""
+        begin
+        If lrsSUSPENSE:SUSPENSE_DATE = TODAYSDATE Then
+            Begin
+            Access lrsSUSWORK1, Set lrsSUSWORK1:COMPANY_ID = lrsSUSPENSE:COMPANY_ID, Generic
+
+            Add lrsSUSWORK1
+                Begin
+                lrsSUSWORK1:COMPANY_ID    = lrsSUSPENSE:COMPANY_ID
+                lrsSUSWORK1:claim_no      = lrsSUSPENSE:claim_no
+                lrsSUSWORK1:SUSPENSE_DATE = lrsSUSPENSE:SUSPENSE_DATE
+                lrssuswork1:user_id       = lrssuspense:requestor
+                lrsSUSWORK1:email         = lrsSUSPENSE:email
+                End
+
+            l_email = lrssuspense:email
+            access lrssuswork, set lrssuswork:email = l_email, generic
+
+            if lrssuswork:email <> l_email then
+                begin
+                add lrssuswork
+                    begin
+                    lrssuswork:email      = lrssuspense:email
+                    end
+                end
+            end
+
+        Next lrsSUSPENSE
+        End
+
+l_email = ""
+Access lrsSUSWORK, Set lrsSUSWORK:email = l_email, approximate
+
+while lrssuswork:email not one of ""
+        begin
+
+        proc("lrssuswork2.mk")/noconsole
+        add lrssuswork2
+            begin
+            lrssuswork2:email = lrssuswork:email
+            end
+
+        Writefile(L_FILENAME,"%s", "cle list<nl>")
+        Writefile(L_FILENAME,"%s", "cle find<nl>")
+        Writefile(L_FILENAME,"%s", "cle sum<nl>")
+        Writefile(L_FILENAME,"%s", "run lrspr304<nl>")
+        Writefile(L_FILENAME,"%s", "cli uuencode ./lrspr304.wks claimssuspense.wks > claimssuspense.uue<nl>")
+        Writefile(L_FILENAME,"%s%s%s%s%s%s%s","cli mail -s ","'",Trun(L_SUBJECT),"'"," ",
+                                               Trun(lrssuswork:email), " < suspense.uue<nl>")
+        Writefile(L_FILENAME,"%s", "cli rm lrspr304.cq<nl>")
+        Closefile(L_FILENAME)
+
+        { Proc("CLI CQ %S", L_FILENAMEA) }
+        { Proc("CLI rm %s", L_FILENAME) }
+
+        Next lrssuswork
+        End
+
+/* end of email */
+End
+
+
+/* end of program */
+End

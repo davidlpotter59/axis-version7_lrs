@@ -1,0 +1,267 @@
+%%
+Screen
+        Name = "lrsin010" ;
+        Type = "Multiline" ;
+        Repeat LINE_ITEMS, 8 times ;
+        Padcharacter = Space;
+        Screensize = "dynamic" ;
+        Windowtitle = "%a     %s Summary     Ver 7.01 %m"
+        Domain = "lrssummary" ;
+       -- resizeable = Yes ;
+        iconline = 0 ;
+
+        Global String G_LIB[10],
+                      G_COMPANY_ID[10],
+                      G_CLAIMANT[50],
+                      G_CAUSE_LOSS_SUBLINE[2],
+                      G_LRSMT010[1],
+                      G_RESERVE_UPDATE[1],
+                      G_INSURED[1],
+                      G_LOSS_CLOSE[1],
+                      G_ULAE_CLOSE[1],
+                      G_ALAE_CLOSE[1] ,
+                      G_LOB_SUBLINE[2],
+                      G_YES[1] ,
+                      G_OVERPAYMENT[1] ;
+
+        Global Unsigned Ascii Number G_CLAIM_NO[11] ,
+                                     G_CAUSE_OF_LOSS[4],
+                                     G_CLAIMANT_SUBCODE[4],
+                                     g_sub_code[4],
+                                     G_LINE_OF_BUSINESS[4],
+                                     G_SUMMARY_SUB_CODE[4],
+                                     G_REINS_CO[6],
+                                     G_PAID_AMOUNT[9]/decimals=2 ,
+                                     G_ULAE_AMOUNT[9]/decimals=2,
+                                     G_ALAE_AMOUNT[9]/decimals=2 ,
+                                     G_STATUS[1] ,
+                                     G_TRANS_TYPE[2] ;
+
+        Global Signed Ascii Number G_SUMMARY_LOSS[7],
+                                   G_SUMMARY_ULAE[7],
+                                   G_SUMMARY_ALAE[7];
+
+        global unsigned ascii number g_policy_no[9],
+                                     g_claim_setup[1] ;
+
+        global date g_loss_date[8] ;
+
+        Local Signed Ascii Number L_LOSS_RESV_TOTAL[8],
+                                  L_LOSS_PAID_TOTAL[9]/decimals=2,
+                                  L_L_PD_TOT[9]/decimals =2,
+                                  L_ULAE_RESV_TOTAL[8],
+                                  L_ULAE_PAID_TOTAL[9]/decimals=2,
+                                  L_U_PD_TOT[9]/decimals=2,
+                                  L_ALAE_RESV_TOTAL[8],
+                                  L_ALAE_PAID_TOTAL[9]/decimals=2,
+                                  L_A_PD_TOT[9]/decimals=2,
+                                  L_OLD_LOSS_RESV[8] ,
+                                  L_OLD_ULAE_RESV[8],
+                                  L_OLD_ALAE_RESV[8],
+                                  l_loss_resv[7]=0,
+                                  l_loss_paid[9]=0/dec=2,
+                                  l_lae_resv[5]=0,
+                                  l_lae_paid[7]=0/dec=2 ;
+
+        local wdate l_status_date ;
+
+        Local Unsigned Ascii Number L_DETAIL_SUBCODE[4],
+                                    L_SUB[4],
+                                    l_status_2[1]=0,
+                                    l_claimant_subcode[4],
+                                    L_TRANS_TYPE[2],
+                                    l_abort_program[1]=0,
+                                    L_OLD_COL[4],
+                                    L_OLD_TRANS_TYPE[2] ,
+                                    l_vendor_no[5]=0,
+                                    l_cause_of_loss[4]=0 ;
+
+        String l_status[1]="O",
+               l_continue_1[3],
+               l_minimum_message[100],
+               l_continue[3],
+               l_cause_loss_subline[2]="",
+               l_ulae[1]="N",
+               l_alae[1]="N",
+               L_NAME_MATCH[1],
+               l_system_id[15]="",
+               l_dec[15]="",
+               L_OLD_COL_SUBLINE[2],
+               L_MISC[20],
+               L_CHECK[1]="N",
+               L_OPEN[1] ,
+               L_SUBRO[1],
+               L_SALVAGE[1],
+               L_OVERPAYMENT[1] ,
+               L_REOPENED[1] ,
+               L_LINE_TYPE[1] ,
+               L_ENTER[1],
+               L_REINS_OUTFILE[15],
+               L_REIN_COMPANY_ID[10]="",
+               l_commandline[39]="",
+               L_REINS_PROGRAM[12]="";
+
+        Access lrssummary,
+           Set lrssummary:COMPANY_ID = G_COMPANY_ID ,
+               lrssummary:CLAIM_NO = G_CLAIM_NO, generic;
+
+        include "stdkeys7.inc"
+
+Style Definition
+
+        Include "styles.inc"
+
+Functions
+
+        Include "stdfunc7m.inc"
+
+Menu Definition
+
+        Include "stdmenu7.inc"
+
+}
+
+Toolbar Definition
+
+        Include "stdtoolbar7m.inc"
+
+}
+
+Screen Entry
+disable(add_fn)
+disable(append_fn)
+disable(change_fn)
+disable(delete_Fn)
+disable(search_fn)
+
+Access Validation
+If lrssummary:COMPANY_ID <> G_COMPANY_ID Or
+   lrssummary:CLAIM_NO <> G_CLAIM_NO Then
+    Error 1000
+
+screen at 2,1 to 21,122
+{
+%%
+                                                  _______________
+*-----------------------------------------------------------------------------------------------------------------------*
+| Company Id:    _____________  __________________________________________________                                      |
+| Claim Number:  ___________^                            Date of Loss:  __________                                      |
+| Policy No:     _____________                           Reported Date: __________                                      |
+*-----------------------------------------------------------------------------------------------------------------------*
+| Claimant  Trans  LOB Cause Cause   Loss        Loss           ULAE         ULAE           ALAE        ALAE     Status |
+|           Code  Sub  Loss  Sub     Resv        Paid           Resv         Paid           Resv        Paid            |
+*-----------------------------------------------------------------------------------------------------------------------*
+| __________ __    __  ____  ___  ___________ ______________ ____________ ______________ ___________ ______________  _  |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+|                                                                                                                       |
+| Totals                          ___________ ______________ ____________ ______________ ___________ ______________~~~~~|
+*-----------------------------------------------------------------------------------------------------------------------*
+
+%%
+
+Fields
+101     FUNCTION/noecho/showasguidetext ;
+301     lrssetup:company_id/displayonly ;
+302     trun(sfscompany:name[1]) ;
+401     lrssetup:claim_no/displayonly ;
+402     sfsline:claim_alpha ;
+403     lrssetup:loss_date/displayonly ;
+501     lrssetup:policy_no/displayonly ;
+502     lrssetup:reported_date/displayonly ;
+
+1001    LRSSUMMARY:CLAIMANT/displayonly                 tagged LINE_ITEMS;
+1002    LRSSUMMARY:TRANS_TYPE/displayonly               tagged LINE_ITEMS;
+1003    LRSSUMMARY:LOB_SUBLINE/displayonly              tagged LINE_ITEMS;
+1004    LRSSUMMARY:CAUSE_OF_LOSS/displayonly            tagged LINE_ITEMS;
+1005    LRSSUMMARY:CAUSE_LOSS_SUBLINE/displayonly       tagged LINE_ITEMS;
+1006    LRSSUMMARY:LOSS_RESV/displayonly                tagged LINE_ITEMS;
+1007    LRSSUMMARY:LOSS_PAID/displayonly                tagged LINE_ITEMS;
+1008    LRSSUMMARY:ULAE_RESV/displayonly                tagged LINE_ITEMS;
+1009    LRSSUMMARY:ULAE_PAID/displayonly                tagged LINE_ITEMS;
+1010    LRSSUMMARY:ALAE_RESV/displayonly                tagged LINE_ITEMS;
+1011    LRSSUMMARY:ALAE_PAID/displayonly                tagged LINE_ITEMS;
+1012    LRSSUMMARY:STATUS/displayonly                   tagged LINE_ITEMS;
+
+1901    begin
+            do loss_resv_totals
+        end
+        L_LOSS_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1902    L_LOSS_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+1903    L_ULAE_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1904    L_ULAE_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+1905    L_ALAE_RESV_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9-" ;
+1906    L_ALAE_PAID_TOTAL/displayonly/mask="$Z,ZZZ,ZZ9.99-" ;
+
+} -- end of screen panel
+
+Screen Exit
+If LRSSUMMARY:COMPANY_ID > "" Then
+    G_COMPANY_ID = LRSSUMMARY:COMPANY_ID ;
+If LRSSUMMARY:CLAIM_NO > 0 Then
+    G_CLAIM_NO = LRSSUMMARY:CLAIM_NO ;
+If LRSSUMMARY:CAUSE_OF_LOSS > 0 Then
+    G_CAUSE_OF_LOSS = LRSSUMMARY:CAUSE_OF_LOSS ;
+If LRSSUMMARY:TRANS_TYPE > 0 Then
+    G_TRANS_TYPE = LRSSUMMARY:TRANS_TYPE ;
+If LRSSUMMARY:CAUSE_LOSS_SUBLINE > "" Then
+    G_CAUSE_LOSS_SUBLINE = LRSSUMMARY:CAUSE_LOSS_SUBLINE  ;
+If LRSSUMMARY:SUB_CODE > 0 Then
+    G_SUMMARY_SUB_CODE = LRSSUMMARY:SUB_CODE ;
+if lrssummary:claimant > "" then
+    G_CLAIMANT         = LRSSUMMARY:CLAIMANT ;
+if lrssummary:lob_subline > "" then
+    G_LOB_SUBLINE      = LRSSUMMARY:LOB_SUBLINE ;
+if lrssummary:line_of_business > 0 then
+    G_LINE_OF_BUSINESS = LRSSUMMARY:LINE_OF_BUSINESS ;
+if lrssummary:loss_resv > 0 then
+    G_SUMMARY_LOSS     = LRSSUMMARY:LOSS_RESV ;
+if lrssummary:alae_resv > 0 then
+    G_SUMMARY_ALAE     = LRSSUMMARY:ALAE_RESV ;
+if lrssummary:ulae_resv > 0 then
+    G_SUMMARY_ULAE     = LRSSUMMARY:ULAE_RESV ;
+
+Procedure Definition
+
+Procedure LOSS_RESV_TOTALS
+Begin
+L_LOSS_RESV_TOTAL       = 0
+L_LOSS_PAID_TOTAL       = 0
+L_L_PD_TOT              = 0
+L_ULAE_RESV_TOTAL       = 0
+L_ULAE_PAID_TOTAL       = 0
+L_U_PD_TOT              = 0
+L_ALAE_RESV_TOTAL       = 0
+L_ALAE_PAID_TOTAL       = 0
+L_A_PD_TOT              = 0
+
+Access LRSSUMMARY_ALIAS, Set LRSSUMMARY_ALIAS:COMPANY_ID = lrssummary:COMPANY_ID,
+                             LRSSUMMARY_ALIAS:CLAIM_NO   = lrssummary:CLAIM_NO, Generic
+
+while LRSSUMMARY_ALIAS:COMPANY_ID = lrssummary:COMPANY_ID  and
+      LRSSUMMARY_ALIAS:CLAIM_NO   = lrssummary:CLAIM_NO
+        begin
+        L_LOSS_PAID_TOTAL       = L_LOSS_PAID_TOTAL + LRSSUMMARY_ALIAS:LOSS_PAID
+        L_L_PD_TOT              = LRSSUMMARY_ALIAS:LOSS_PAID
+        L_ULAE_PAID_TOTAL       = L_ULAE_PAID_TOTAL + LRSSUMMARY_ALIAS:ULAE_PAID
+        L_U_PD_TOT              = LRSSUMMARY_ALIAS:ULAE_PAID
+        L_ALAE_PAID_TOTAL       = L_ALAE_PAID_TOTAL + LRSSUMMARY_ALIAS:ALAE_PAID
+        L_A_PD_TOT              = LRSSUMMARY_ALIAS:ALAE_PAID
+        L_LOSS_RESV_TOTAL       = L_LOSS_RESV_TOTAL + LRSSUMMARY_ALIAS:LOSS_RESV
+        L_ULAE_RESV_TOTAL       = L_ULAE_RESV_TOTAL + LRSSUMMARY_ALIAS:ULAE_RESV
+        L_ALAE_RESV_TOTAL       = L_ALAE_RESV_TOTAL + LRSSUMMARY_ALIAS:ALAE_RESV
+        L_L_PD_TOT              = 0
+        L_U_PD_TOT              = 0
+        L_A_PD_TOT              = 0
+
+        Next LRSSUMMARY_ALIAS
+        End
+
+End
+
+End

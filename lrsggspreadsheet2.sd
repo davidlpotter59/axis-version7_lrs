@@ -1,0 +1,98 @@
+%%
+Program
+        Name = "lrsggspreadsheet2" ;
+        Type = "File" ;
+        Domain = "lrsggpayreg" ;
+
+        Number COUNTER = 0;
+
+        signed ascii number l_payment_amount[11]=0/decimals=2;
+        signed ascii number l_loss_paid[11]=0/decimals=2;
+        signed ascii number l_lae_paid[11]=0/decimals=2;
+        signed ascii number l_recovery[11]=0/decimals=2;
+        string l_claim_number[13]="";
+
+Screen Entry
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+Begin
+    Write ("<014>")
+End
+
+Update
+
+l_claim_number = lrsggpayreg:claim_number[1,12]
+
+l_payment_amount = val(lrsggpayreg:amount)
+
+if val(lrsggpayreg:payment_transaction_code) one of
+10,12,17,18,22,23,24,29,31,32,36,45,48,51,52,53,54,59,70,72,73,75,85,86,87,88,89,
+90,91,92,94,97,98,101,108,111,120,121,123,151,152,154,155,156,167,172,173,175,176,
+177,178,179,180,181,197,199,204,205,211,216,218,219,224,225,226,227,228,229,258,259,
+260,15,21,25,26,30,33,35,37,39,40,41,42,44,47,49,50,55,56,57,58,74,76,77,78,79,80,
+81,82,84,95,100,102,109,110,127,128,129,130,131,132,133,134,135,136,137,138,139,140,
+141,142,144,145,146,147,148,149,150,160,161,163,182,183,184,185,186,188,190,191,192,
+193,195,196,200,201,203,206,207,209,210,217,220,222,223,230,231,232,233,236,237,238,
+239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257 then
+l_loss_paid = l_payment_amount
+
+if val(lrsggpayreg:payment_transaction_code) one of
+11,13,14,19,27,28,34,38,61,62,63,64,65,66,67,68,71,96,99,103,104,105,125,126,153,
+157,158,159,162,164,165,166,168,169,170,171,174,187,189,194,198,208,212,213,215,
+16,20,43,60,83,112,113,114,115,116,117,118,122,124,234,235,2617 then l_lae_paid = l_payment_amount
+
+if val(lrsggpayreg:payment_transaction_code) one of
+46,69,93,106,107,119,143,202,214,221 then l_recovery = l_payment_amount * -1
+
+Do UPDATE_SCIPS_NARS
+
+l_claim_number      = ""
+l_payment_amount    = 0.00
+l_loss_paid         = 0.00
+l_lae_paid          = 0.00
+l_recovery          = 0.00
+
+Screen Exit
+Write ("%c%s%n",15001,"Update is Compete......",COUNTER)
+
+Procedure Definition
+
+Procedure UPDATE_SCIPS_NARS
+{
+
+Access SCIPS_NARS, Set SCIPS_NARS:NARS_CLAIM_NO = l_claim_number
+
+if scips_nars:nars_claim_no <> l_claim_number then
+{
+  add scips_nars
+  {
+    scips_nars:nars_claim_no          = l_claim_number
+    scips_nars:scips_loss_reserve     = 0
+    scips_nars:scips_lae_reserve      = 0
+    scips_nars:scips_loss_paid        = l_loss_paid
+    scips_nars:scips_lae_paid         = l_lae_paid
+    scips_nars:scips_recovery         = l_recovery
+    scips_nars:nars_ind_reserve       = 0
+    scips_nars:nars_med_reserve       = 0
+    scips_nars:nars_loss_paid         = 0
+    scips_nars:nars_lae_paid          = 0
+    scips_nars:nars_recovery          = 0
+    scips_nars:nars_net               = 0
+  }
+  }
+else
+if scips_nars:nars_claim_no = l_claim_number then
+  {
+  change scips_nars
+  {
+    scips_nars:scips_loss_reserve     = 0
+    scips_nars:scips_lae_reserve      = 0
+    scips_nars:scips_loss_paid        = scips_nars:scips_loss_paid + l_loss_paid
+    scips_nars:scips_lae_paid         = scips_nars:scips_lae_paid + l_lae_paid
+    scips_nars:scips_recovery         = scips_nars:scips_recovery + l_recovery
+  }
+  }
+}
+
+End

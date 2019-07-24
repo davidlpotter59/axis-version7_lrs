@@ -1,0 +1,274 @@
+%%
+Program
+-- update the NARS data
+-- this is special because of the claim number
+        Name = "lrsggclaimantcnv" ;
+        Type = "File" ;
+        Domain = "lrsggclaimant" ;
+        padcharacter = space ;
+
+        Number COUNTER = 0;
+        unsigned ascii number l_claim_no[11]=0/decimals=0;
+
+        String L_COMPANY_ID[10]="GGUND";
+        String l_enter[1],
+               l_subline[2] = "AO",
+               l_claim_no_str[11],
+               l_filename[30];
+
+        Unsigned ASCII number l_ctr[3],
+                              l_start_ctr[3],
+                              l_end_ctr[3],
+                              l_pol_year[4],
+                              l_end_sequence[4],
+                              l_policy_no[9],
+                              l_start_pos[2],
+                              l_end_pos[2],
+                              l_start_pos1[2],
+                              l_start_pos2[2],
+                              l_start_pos3[2];
+
+        SIGNED ASCII NUMBER L_TOTAL_RESERVE[7]=0/DECIMALS=0;
+
+        wdate l_eff_date,
+              l_loss_date ;
+
+Screen Entry
+
+Update
+
+COUNTER = COUNTER + 1
+
+If COUNTER = 1 Then
+Begin
+    Write ("<014>")
+    Write ("%c%s",01001,"Running lrssetupcnv_gg2")
+End
+
+write ("%c%s%n",05001,"Counter = ", counter)
+
+do update_lrssetup
+
+Screen Exit
+
+DO PROCESS_LRSSETUP_FOR_POL_YEAR
+
+Write ("%c%s%n",15001,"Update is Compete......",COUNTER)
+
+Procedure Definition
+
+Procedure UPDATE_lrssetup
+{
+
+l_claim_no = val(lrsggclaimant:claim_number[20,30])
+
+-- added 05/3/2011 to handle large numeric claim numbers
+l_claim_no = val(lrsggclaimant:claim_number)
+if val(lrsggclaimant:claim_number) > 99999999999 then
+{
+   l_claim_no=val(lrsggclaimant:claim_number[3,13])
+}
+
+l_start_pos = 0
+l_start_pos1 = 0
+l_start_pos2 = 0
+l_start_pos3 = 0
+
+l_start_pos  = pos("GGDI",lrsggclaimant:claim_number)
+l_start_pos1 = pos("GGCA",lrsggclaimant:claim_number)
+l_start_pos2 = pos("GGSI",lrsggclaimant:claim_number)
+l_start_pos3 = pos("GGSI",lrsggclaimant:claim_number)
+
+if l_start_pos   > 0 or
+   l_start_pos1  > 0 or
+   l_start_pos2  > 0 then
+   {
+       if l_start_pos > 0 then
+       {
+           l_end_pos   = l_start_pos  + 3
+       }
+       else if l_start_pos1 > 0 then
+       {
+           l_end_pos   = l_start_pos1 + 3
+       }
+       else if l_start_pos2 > 0 then
+       {
+           l_end_pos   = l_start_pos2 + 3
+       }
+       else if l_start_pos3 > 0 then
+       {
+           l_end_pos   = l_start_pos3 + 3
+       }
+       l_claim_no_str = lrsggclaimant:claim_number[l_end_pos +1, len(lrsggclaimant:claim_number)]
+       if l_start_pos > 0 then
+       {
+           l_claim_no_str = "444"+trun(l_claim_no_str)
+       }
+       else if l_start_pos1 > 0 then
+       {
+           l_claim_no_str = "333"+trun(l_claim_no_str)
+       }
+       else if l_start_pos2 > 0 then
+       {
+           l_claim_no_str = "888"+trun(l_claim_no_str)
+       }
+       else if l_start_pos3 > 0 then
+       {
+           l_claim_no_str = "888"+trun(l_claim_no_str)
+       }
+       l_claim_no = val(l_claim_no_str)
+
+   }
+
+--l_claim_no_str = lrsggclaimant:claim_number
+--l_claim_no_str = replace("GGSI","888",lrsggclaimant:claim_number)
+--l_claim_no = val(l_claim_no_str)
+
+--write ("<014>")
+--write ("%c%s%n",01001,"Claim Number    ",l_claim_no)
+--write ("%c%s%s",03001,"Str             ",l_claim_no_str)
+--read (23,1,"Press Enter ",l_enter,1)
+
+
+l_company_id = "GGUND     "
+Access lrssetup, Set lrssetup:COMPANY_ID = L_COMPANY_ID,
+                     lrssetup:claim_no   = l_claim_no, exact
+
+if lrssetup:company_id = l_company_id and
+   lrssetup:claim_no   = l_claim_no then
+{
+    change lrssetup
+    {
+        lrssetup:cause_of_loss    = val(lrsggclaimant:mso_cause_of_loss)
+
+        lrssetup:cause_loss_subline = "AO"
+        -- fix sublines
+        if lrssetup:line_of_business = 8 and
+           lrssetup:lob_subline = "10" then
+           {
+              lrssetup:lob_subline = "20"
+              lrssetup:cause_of_loss = 2
+           }
+
+        if lrssetup:line_of_business = 8 and
+           lrssetup:cause_of_loss one of 36,32,43 then
+           {
+              lrssetup:lob_subline = "81"
+           }
+
+        if lrssetup:line_of_business = 8 and
+           lrssetup:cause_of_loss = 45 then
+           {
+              lrssetup:cause_of_loss = 29
+              lrssetup:lob_subline = "20"
+           }
+
+        if lrssetup:line_of_business = 8 and
+           lrssetup:cause_of_loss = 39 then
+           {
+              lrssetup:lob_subline = "81"
+           }
+
+        if lrssetup:line_of_business = 8 and
+           lrssetup:lob_subline = "20" and
+           lrssetup:cause_of_loss = 1 then
+           {
+              lrssetup:cause_of_loss = 2
+           }
+
+        if lrssetup:cause_of_loss = 0 then
+        {
+            lrssetup:cause_of_loss = 2
+            lrssetup:cause_loss_subline = "AO"
+
+            l_pol_year = 0000
+            do get_pol_year
+            lrssetup:pol_year = l_pol_year
+            l_pol_year = 0000
+        }
+
+/*
+write ("<014>")
+write ("%c%s%n",01001,"Agent number  ", lrssetup:agent_no)
+write ("%c%s%n",03001,"sfpname policy number ",lrssetup:policy_no)
+--write ("%c%s%n",05001,"Pol Number    ",sfpcurrent:policy_no)
+write ("%c%s%n",07001,"pol year      ",l_pol_year)
+write ("%c%s%n",09001,"lrssetup policy no     ",lrssetup:policy_no)
+write ("%c%s%n",11001,"Claim Number           ",lrssetup:claim_no)
+--write ("%c%s%n",13001,"delos pol #            ",sfpname_delos:policy_no)
+Read (23,1,"Press Enter to Continue ",L_ENTER,1)
+*/
+
+    }
+}
+
+}
+
+PROCEDURE PROCESS_LRSSETUP_FOR_POL_YEAR
+{
+
+l_company_id = ""
+
+access lrssetup, set lrssetup:company_id    = l_company_id, approximate
+
+while lrssetup:errornumber = 0
+{
+    do GET_POL_YEAR
+    access lrssetup_alt, set lrssetup_alt:company_id = lrssetup:company_id,
+                             lrssetup_alt:claim_no   = lrssetup:claim_no
+
+    if lrssetup_alt:errornumber = 0 then -- found claim
+    {
+       change lrssetup_alt
+       {
+          lrssetup_alt:pol_year = l_pol_year
+          IF L_POL_YEAR = 0000 THEN
+          {
+             LRSSETUP_ALT:POL_YEAR = YEAR(LRSSETUP:EFF_DATE)
+          }
+          IF LRSSETUP:EFF_DATE = 00.00.0000 AND
+             PRSMASTER:EFF_DATE <> 00.00.0000 THEN
+             {
+                LRSSETUP_ALT:EFF_DATE = PRSMASTER:EFF_DATE
+                LRSSETUP_ALT:POL_YEAR = YEAR(PRSMASTER:EFF_DATE)
+             }
+       }
+    }
+    next lrssetup
+}
+
+} -- end of procedure
+
+PROCEDURE GET_POL_YEAR
+{
+
+l_pol_year = 0000
+
+            access prsmaster, set prsmaster:company_id = lrssetup:company_id,
+                                  prsmaster:policy_no  = lrssetup:policy_no, approximate
+
+            while prsmaster:company_id  = lrssetup:company_id and
+                  prsmaster:policy_no   = lrssetup:policy_no and
+                  l_pol_year            = 0000
+                  {
+                     if prsmaster:trans_code one of 10,12,13,14 then
+                     {
+                        if lrssetup:eff_date => prsmaster:trans_eff and
+                           lrssetup:eff_date <= prsmaster:trans_exp then
+                           {
+                               l_pol_year = prsmaster:pol_year
+                           }
+                     }
+                   next prsmaster
+                   }
+/*
+if l_pol_year = 0000 then
+{
+   write ("%c%s%n",01001,"Claim Number with bad pol year      = ",lrssetup:claim_no)
+   write ("%c%s%n",03001,"Policy number                       = ",lrssetup:policy_no)
+   write ("%c%s%d",05001,"lrssetup:eff_date                   = ",lrssetup:eff_date)
+   read (23,1,"Press enter to continue ",l_enter,1)
+}
+*/
+}
+} -- end of program
